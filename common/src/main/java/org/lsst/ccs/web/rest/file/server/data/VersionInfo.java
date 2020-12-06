@@ -1,0 +1,84 @@
+package org.lsst.ccs.web.rest.file.server.data;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Information returned by the rest-file-server for a versioned file
+ * @author tonyj
+ */
+public class VersionInfo {
+
+    private int defaultVersion;
+    private int latestVersion;
+    private List<VersionInfo.Version> versions;
+
+    public int getDefault() {
+        return defaultVersion;
+    }
+
+    public void setDefault(int defaultVersion) {
+        this.defaultVersion = defaultVersion;
+    }
+
+    public int getLatest() {
+        return latestVersion;
+    }
+
+    public void setLatest(int latestVersion) {
+        this.latestVersion = latestVersion;
+    }
+
+    public List<Version> getVersions() {
+        return versions;
+    }
+
+    public void setVersions(List<Version> versions) {
+        this.versions = versions;
+    }
+    
+    
+    
+    public static class Version {
+        private int version;
+        private long lastModified;
+        private int size;
+
+        public int getVersion() {
+            return version;
+        }
+
+        public void setVersion(int version) {
+            this.version = version;
+        }
+
+        public long getLastModified() {
+            return lastModified;
+        }
+
+        public void setLastModified(long lastModified) {
+            this.lastModified = lastModified;
+        }
+
+        public int getSize() {
+            return size;
+        }
+
+        public void setSize(int size) {
+            this.size = size;
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "VersionInfo{" + "defaultVersion=" + defaultVersion + ", latestVersion=" + latestVersion + ", versions=" + versions + '}';
+    }
+    
+
+    Map<String, Object> getAsMap() {
+        Map<String, Object> result = new HashMap<>();
+        return result;
+    }
+    
+}
