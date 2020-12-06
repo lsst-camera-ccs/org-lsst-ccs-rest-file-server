@@ -27,6 +27,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
+import org.jvnet.hk2.annotations.Optional;
 
 /**
  * Rest interface which works with any files
@@ -37,7 +38,8 @@ import javax.ws.rs.core.StreamingOutput;
 @Produces(MediaType.APPLICATION_JSON)
 public class FileServer {
 
-    @Inject
+    @Inject 
+    @Optional  
     private java.nio.file.Path baseDir;
 
     @Context
@@ -47,6 +49,9 @@ public class FileServer {
             if (initParameter != null) {
                 baseDir = Paths.get(initParameter);
             } 
+        }
+        if (baseDir == null) {
+            baseDir = Paths.get("/home/tonyj/ConfigTest/");
         }
     }
     

@@ -20,7 +20,7 @@ public class TestServer {
     private Path tempDir;
     private final URI serverURI;
     private final HttpServer httpServer;
-    
+
     public TestServer() throws URISyntaxException, IOException {
         tempDir = Files.createTempDirectory("RestServer");
         MyConfiguration rc = new MyConfiguration();
@@ -31,12 +31,21 @@ public class TestServer {
             }
         });
         serverURI = new URI("http://localhost:9999/");
-        httpServer = JdkHttpServerFactory.createHttpServer(serverURI.resolve("rest"), rc, true);        
+        httpServer = JdkHttpServerFactory.createHttpServer(serverURI.resolve("rest"), rc, true);
+    }
+
+    /**
+     * Deletes all of the files in the tempDir, but not the tempDir itself
+     * @throws IOException 
+     */
+    public final void cleanFiles() throws IOException {
+        Files.walk(tempDir).sorted(Comparator.reverseOrder()).filter(p -> p != tempDir).map(Path::toFile).forEach(File::delete);
     }
 
     public void shutdown() throws IOException {
         httpServer.stop(0);
-        Files.walk(tempDir).sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
+        cleanFiles();
+        Files.delete(tempDir);
     }
 
     public URI getServerURI() {

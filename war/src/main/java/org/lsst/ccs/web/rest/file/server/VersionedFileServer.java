@@ -26,6 +26,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
+import org.jvnet.hk2.annotations.Optional;
 
 /**
  * Rest interface with functions specific to versioned files
@@ -37,6 +38,7 @@ import javax.ws.rs.core.StreamingOutput;
 public class VersionedFileServer {
 
     @Inject
+    @Optional  
     private java.nio.file.Path baseDir;
 
     @Context
@@ -46,6 +48,9 @@ public class VersionedFileServer {
             if (initParameter != null) {
                 baseDir = Paths.get(initParameter);
             } 
+        }
+        if (baseDir == null) {
+            baseDir = Paths.get("/home/tonyj/ConfigTest/");
         }
     }
 

@@ -17,5 +17,6 @@ public final class MyConfiguration extends ResourceConfig {
         register(CORSResponseFilter.class);
         register(FileServer.class);
         register(VersionedFileServer.class);
+        register(IOExceptionMapper.class);
     }
 }

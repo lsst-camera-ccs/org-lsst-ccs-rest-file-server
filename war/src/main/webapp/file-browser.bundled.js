@@ -174,7 +174,7 @@ const Z=(t,i)=>{const s=t.startNode.parentNode,e=void 0===i?t.endNode:i.startNod
       :host {
         display: block;
       }
-    `}static get properties(){return{data:{type:Object,notify:!0},path:{type:String,notify:!0}}}constructor(){super(),this.restURL="https://lsst-camera-dev.slac.stanford.edu/RestFileServer/rest/",this.data={},this.path="."}render(){return B`
+    `}static get properties(){return{restURL:{type:String,notify:!0},data:{type:Object,notify:!0},path:{type:String,notify:!0}}}constructor(){super(),this.restURL="rest/",this.data={},this.path="."}render(){return B`
       <h1>File Browser</h1>
       Path: ${this.path}
 
@@ -196,7 +196,7 @@ const Z=(t,i)=>{const s=t.startNode.parentNode,e=void 0===i?t.endNode:i.startNod
       <ace-editor readonly name=${i} fileURL=${t}></ace-editor>
     `}_renderImage(t){return B`
       <img src=${t}>
-    `}firstUpdated(t){this._updateData(),window.onpopstate=t=>{console.log(t.state),this._goto(null==t.state?".":t.state)}}_updateData(){fetch(this.restURL+"list/"+this.path).then(t=>t.json()).then(t=>this.data=t)}_gotoFile(t){let i=this.path+"/"+t.path[0].textContent;this._goto(i),window.history.pushState(i,"Content",i.substring(1))}_goto(t){this.data={},this.path=t,this._updateData()}}class at extends Y{static get styles(){return Q`
+    `}firstUpdated(t){this.path=window.location.pathname.replace("/RestFileServer","."),"./"==this.path&&(this.path="."),this._updateData(),window.onpopstate=t=>{console.log(t.state),this._goto(null==t.state?".":t.state)}}_updateData(){fetch(this.restURL+"list/"+this.path).then(t=>t.json()).then(t=>this.data=t)}_gotoFile(t){let i=this.path+"/"+t.path[0].textContent;this._goto(i),window.history.pushState(i,"Content","/RestFileServer"+i.substring(1))}_goto(t){this.data={},this.path=t,this._updateData()}}class at extends Y{static get styles(){return Q`
         :host {
           display: block;
           width: 100%;

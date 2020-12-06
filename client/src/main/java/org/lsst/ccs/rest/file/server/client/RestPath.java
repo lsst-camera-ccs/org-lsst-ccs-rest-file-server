@@ -1,17 +1,18 @@
 package org.lsst.ccs.rest.file.server.client;
 
-import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
+import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.nio.file.AccessMode;
 import java.nio.file.CopyOption;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
 import java.nio.file.LinkOption;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.WatchEvent;
@@ -28,12 +29,18 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
+import org.lsst.ccs.web.rest.file.server.data.IOExceptionResponse;
 import org.lsst.ccs.web.rest.file.server.data.VersionInfo;
 import org.lsst.ccs.web.rest.file.server.data.RestFileInfo;
 
@@ -119,9 +126,10 @@ public class RestPath extends AbstractPath {
 
     @Override
     public Path toAbsolutePath() {
-        if (isAbsolute) return this;
-        else {
-           return new RestPath(fileSystem, path, isReadOnly, true);
+        if (isAbsolute) {
+            return this;
+        } else {
+            return new RestPath(fileSystem, path, isReadOnly, true);
         }
     }
 
@@ -164,29 +172,34 @@ public class RestPath extends AbstractPath {
         VersionOpenOption voo = getOptions(options, VersionOpenOption.class);
         String restPath = voo == null ? "rest/upload/" : "rest/version/upload/";
         URI uri = fileSystem.getURI(restPath, path);
-        HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
-        connection.setDoOutput(true);
-        connection.setRequestProperty("Content-Type", "application/octet-stream");
-        connection.setRequestMethod("POST");
-        return new FilterOutputStream(connection.getOutputStream()) {
+        BlockingQueue<Future<Response>> queue = new ArrayBlockingQueue<>(1);
+        PipedOutputStream out = new PipedOutputStream() {
             @Override
             public void close() throws IOException {
                 super.close();
-                int rc = connection.getResponseCode();
-                if (rc != 200) {
-                    throw new IOException("Failed during close, rc=" + rc);
+                try {
+                    Response response = queue.take().get();
+                    checkResponse(response);
+                } catch (InterruptedException x) {
+                    throw new InterruptedIOException("Interrupt during file close");
+                } catch (ExecutionException x) {
+                    throw new IOException("Error during file close", x.getCause());
                 }
             }
+            
         };
+        Client client = ClientBuilder.newClient();
+        PipedInputStream in = new PipedInputStream(out);
+        Future<Response> futureResponse = client.target(uri).request(MediaType.APPLICATION_JSON).async().post(Entity.entity(in, MediaType.APPLICATION_OCTET_STREAM));
+        queue.add(futureResponse);
+        return out;
     }
 
     void move(RestPath target, CopyOption[] options) throws IOException {
         Client client = ClientBuilder.newClient();
         URI uri = UriBuilder.fromUri(fileSystem.getURI("rest/move/", path)).queryParam("target", String.join("/", target.path)).build();
         Response response = client.target(uri).request(MediaType.APPLICATION_JSON).get();
-        if (response.getStatus() != 200) {
-            throw new IOException("Error moving file " + response.getStatus()+" for "+uri+" "+response.getStatusInfo());
-        }
+        checkResponse(response);
     }
 
     <T extends OpenOption> T getOptions(OpenOption[] options, Class<T> optionClass) {
@@ -201,7 +214,7 @@ public class RestPath extends AbstractPath {
     BasicFileAttributes getAttributes() throws IOException {
         if (isVersionedFile()) {
             RestFileInfo info = getVersionedRestFileInfo();
-            return new RestFileAttributes(info);            
+            return new RestFileAttributes(info);
         } else {
             RestFileInfo info = getRestFileInfo();
             return new RestFileAttributes(info);
@@ -214,9 +227,7 @@ public class RestPath extends AbstractPath {
         }
         Client client = ClientBuilder.newClient();
         Response response = client.target(fileSystem.getURI("rest/version/info/", path)).request(MediaType.APPLICATION_JSON).get();
-        if (response.getStatus() != 200) {
-            throw new IOException("Bad response " + response.getStatus() + " from " + fileSystem.getURI("rest/version/info/", path));
-        }
+        checkResponse(response);
         VersionInfo info = response.readEntity(VersionInfo.class);
         return new RestVersionedFileAttributes(info);
     }
@@ -224,21 +235,35 @@ public class RestPath extends AbstractPath {
     private RestFileInfo getVersionedRestFileInfo() throws IOException {
         Client client = ClientBuilder.newClient();
         Response response = client.target(fileSystem.getURI("rest/version/info/", path)).request(MediaType.APPLICATION_JSON).get();
-        if (response.getStatus() != 200) {
-            throw new IOException("Bad response " + response.getStatus() + " from " + fileSystem.getURI("rest/info/", path));
-        }
+        checkResponse(response);
         RestFileInfo info = response.readEntity(RestFileInfo.class);
         return info;
     }
-    
+
     private RestFileInfo getRestFileInfo() throws IOException {
         Client client = ClientBuilder.newClient();
         Response response = client.target(fileSystem.getURI("rest/info/", path)).request(MediaType.APPLICATION_JSON).get();
-        if (response.getStatus() != 200) {
-            throw new IOException("Bad response " + response.getStatus() + " from " + fileSystem.getURI("rest/info/", path));
-        }
+        checkResponse(response);
         RestFileInfo info = response.readEntity(RestFileInfo.class);
         return info;
+    }
+
+    private void checkResponse(Response response) throws IOException {
+        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+            if (response.getStatus() == IOExceptionResponse.RESPONSE_CODE) {
+                IOExceptionResponse ioError = response.readEntity(IOExceptionResponse.class);
+                try {
+                    Class<? extends IOException> exceptionClass = Class.forName(ioError.getExceptionClass()).asSubclass(IOException.class);
+                    Constructor<? extends IOException> constructor = exceptionClass.getConstructor(String.class);
+                    IOException io = constructor.newInstance(ioError.getMessage());
+                    throw io;
+                } catch (ReflectiveOperationException ex) {
+                    throw new IOException("Remote Exception " + ioError.getExceptionClass() + " " + ioError.getMessage());
+                }
+            } else {
+                throw new IOException("Resonse code " + response.getStatus() + " " + response.getStatusInfo());
+            }
+        }
     }
 
     BasicFileAttributeView getFileAttributeView() {
@@ -284,36 +309,30 @@ public class RestPath extends AbstractPath {
     void checkAccess(AccessMode... modes) throws IOException {
         Client client = ClientBuilder.newClient();
         Response response = client.target(fileSystem.getURI("rest/list/", path)).request(MediaType.APPLICATION_JSON).get();
-        if (response.getStatus() != 200) {
-            throw new NoSuchFileException("No such file " + response.getStatus());
-        } else {
-            response.readEntity(RestFileInfo.class);
-        }
+        checkResponse(response);
+        response.readEntity(RestFileInfo.class);
     }
 
     DirectoryStream<Path> newDirectoryStream(DirectoryStream.Filter<? super Path> filter) throws IOException {
         Client client = ClientBuilder.newClient();
         Response response = client.target(fileSystem.getURI("rest/list/", path)).request(MediaType.APPLICATION_JSON).get();
-        if (response.getStatus() != 200) {
-            throw new NoSuchFileException("No such file " + response.getStatus());
-        } else {
-            RestFileInfo dirList = response.readEntity(RestFileInfo.class);
-            List<Path> paths = dirList.getChildren().stream().map(fileInfo -> {
-                List<String> newPath = new ArrayList<>(path);
-                newPath.add(fileInfo.getName());
-                return new RestPath(fileSystem, newPath, isReadOnly, true);
-            }).collect(Collectors.toList());
-            return new DirectoryStream<Path>() {
-                @Override
-                public Iterator<Path> iterator() {
-                    return paths.iterator();
-                }
+        checkResponse(response);
+        RestFileInfo dirList = response.readEntity(RestFileInfo.class);
+        List<Path> paths = dirList.getChildren().stream().map(fileInfo -> {
+            List<String> newPath = new ArrayList<>(path);
+            newPath.add(fileInfo.getName());
+            return new RestPath(fileSystem, newPath, isReadOnly, true);
+        }).collect(Collectors.toList());
+        return new DirectoryStream<Path>() {
+            @Override
+            public Iterator<Path> iterator() {
+                return paths.iterator();
+            }
 
-                @Override
-                public void close() throws IOException {
-                }
-            };
-        }
+            @Override
+            public void close() throws IOException {
+            }
+        };
     }
 
     void delete() throws IOException {
@@ -424,7 +443,7 @@ public class RestPath extends AbstractPath {
     }
 
     boolean isSameFile(RestPath other) {
-       return this.toAbsolutePath().equals(other.toAbsolutePath());
+        return this.toAbsolutePath().equals(other.toAbsolutePath());
     }
-    
+
 }
