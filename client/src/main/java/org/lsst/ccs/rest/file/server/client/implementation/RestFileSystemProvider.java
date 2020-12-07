@@ -1,4 +1,4 @@
-package org.lsst.ccs.rest.file.server.client;
+package org.lsst.ccs.rest.file.server.client.implementation;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,6 +22,8 @@ import java.nio.file.spi.FileSystemProvider;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import org.lsst.ccs.rest.file.server.client.VersionedFileAttributeView;
+import org.lsst.ccs.rest.file.server.client.VersionedFileAttributes;
 
 /**
  *

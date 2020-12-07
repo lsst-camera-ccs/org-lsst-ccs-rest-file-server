@@ -1,4 +1,4 @@
-package org.lsst.ccs.rest.file.server.client;
+package org.lsst.ccs.rest.file.server.client.implementation;
 
 import java.io.IOException;
 import java.net.URI;

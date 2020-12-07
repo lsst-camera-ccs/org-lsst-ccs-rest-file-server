@@ -1,4 +1,4 @@
-package org.lsst.ccs.rest.file.server.client;
+package org.lsst.ccs.rest.file.server.client.examples;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,9 +9,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
+import org.lsst.ccs.rest.file.server.client.VersionOption;
+import org.lsst.ccs.rest.file.server.client.VersionedFileAttributeView;
 
 /**
  *

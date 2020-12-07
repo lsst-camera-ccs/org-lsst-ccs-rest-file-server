@@ -1,4 +1,4 @@
-package org.lsst.ccs.rest.file.server.client;
+package org.lsst.ccs.rest.file.server.client.implementation;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -42,6 +42,10 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
+import org.lsst.ccs.rest.file.server.client.VersionOpenOption;
+import org.lsst.ccs.rest.file.server.client.VersionOption;
+import org.lsst.ccs.rest.file.server.client.VersionedFileAttributeView;
+import org.lsst.ccs.rest.file.server.client.VersionedFileAttributes;
 import org.lsst.ccs.web.rest.file.server.data.IOExceptionResponse;
 import org.lsst.ccs.web.rest.file.server.data.VersionInfo;
 import org.lsst.ccs.web.rest.file.server.data.RestFileInfo;
