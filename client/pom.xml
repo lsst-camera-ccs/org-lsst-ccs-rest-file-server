@@ -14,6 +14,14 @@
 
     <name>LSST CCS - Rest File Server - Client</name>
     
+    <distributionManagement>
+        <site>
+            <id>lsst-maven2-site</id>
+            <name>LSST Maven2 centreal site repository</name>
+            <url>dav:${org.lsst.ccs.site.url}</url>
+        </site>
+    </distributionManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.glassfish.jersey.core</groupId>

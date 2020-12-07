@@ -14,6 +14,15 @@
         <artifactId>rest-file-server</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
+
+    <distributionManagement>
+        <site>
+            <id>lsst-maven2-site</id>
+            <name>LSST Maven2 centreal site repository</name>
+            <url>dav:${org.lsst.ccs.site.url}</url>
+        </site>
+    </distributionManagement>
+
     <dependencies>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
