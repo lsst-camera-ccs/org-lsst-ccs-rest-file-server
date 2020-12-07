@@ -40,10 +40,8 @@ public class VersionInfo {
     
     
     
-    public static class Version {
+    public static class Version  extends RestFileInfo {
         private int version;
-        private long lastModified;
-        private int size;
 
         public int getVersion() {
             return version;
@@ -51,22 +49,6 @@ public class VersionInfo {
 
         public void setVersion(int version) {
             this.version = version;
-        }
-
-        public long getLastModified() {
-            return lastModified;
-        }
-
-        public void setLastModified(long lastModified) {
-            this.lastModified = lastModified;
-        }
-
-        public int getSize() {
-            return size;
-        }
-
-        public void setSize(int size) {
-            this.size = size;
         }
     }
 

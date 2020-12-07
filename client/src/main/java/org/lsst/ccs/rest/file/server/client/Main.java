@@ -20,7 +20,6 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
         Map<String, Object> env = new HashMap<>();
-        env.put("useSSL", Boolean.TRUE);
         URI uri = URI.create("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/");
         FileSystem restfs = FileSystems.newFileSystem(uri, env);
         System.out.println("I got "+restfs);

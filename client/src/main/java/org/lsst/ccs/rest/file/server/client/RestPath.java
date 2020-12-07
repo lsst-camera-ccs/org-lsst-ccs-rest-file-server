@@ -1,5 +1,6 @@
 package org.lsst.ccs.rest.file.server.client;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
@@ -13,6 +14,7 @@ import java.nio.file.CopyOption;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
 import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.WatchEvent;
@@ -24,6 +26,7 @@ import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -48,7 +51,7 @@ import org.lsst.ccs.web.rest.file.server.data.RestFileInfo;
  *
  * @author tonyj
  */
-public class RestPath extends AbstractPath {
+class RestPath extends AbstractPath {
 
     private final RestFileSystem fileSystem;
     private final LinkedList<String> path;
@@ -169,8 +172,9 @@ public class RestPath extends AbstractPath {
 
     OutputStream newOutputStream(OpenOption[] options) throws IOException {
 
+        // TODO: Deal with options
         VersionOpenOption voo = getOptions(options, VersionOpenOption.class);
-        String restPath = voo == null ? "rest/upload/" : "rest/version/upload/";
+        String restPath = isVersionedFile() || voo != null ? "rest/version/upload/" : "rest/upload/" ;
         URI uri = fileSystem.getURI(restPath, path);
         BlockingQueue<Future<Response>> queue = new ArrayBlockingQueue<>(1);
         PipedOutputStream out = new PipedOutputStream() {
@@ -202,7 +206,7 @@ public class RestPath extends AbstractPath {
         checkResponse(response);
     }
 
-    <T extends OpenOption> T getOptions(OpenOption[] options, Class<T> optionClass) {
+    private <T extends OpenOption> T getOptions(OpenOption[] options, Class<T> optionClass) {
         for (OpenOption option : options) {
             if (optionClass.isInstance(option)) {
                 return optionClass.cast(option);
@@ -213,15 +217,15 @@ public class RestPath extends AbstractPath {
 
     BasicFileAttributes getAttributes() throws IOException {
         if (isVersionedFile()) {
-            RestFileInfo info = getVersionedRestFileInfo();
-            return new RestFileAttributes(info);
+            VersionInfo info = getVersionedRestFileInfo();
+            return new RestFileAttributes(info.getVersions().get(info.getDefault()-1));
         } else {
             RestFileInfo info = getRestFileInfo();
             return new RestFileAttributes(info);
         }
     }
 
-    VersionedFileAttributes getVersionedAttributes() throws IOException {
+    private VersionedFileAttributes getVersionedAttributes() throws IOException {
         if (!isVersionedFile()) {
             throw new IOException("Cannot read versioned attributes for non-versioned file");
         }
@@ -232,11 +236,11 @@ public class RestPath extends AbstractPath {
         return new RestVersionedFileAttributes(info);
     }
 
-    private RestFileInfo getVersionedRestFileInfo() throws IOException {
+    private VersionInfo getVersionedRestFileInfo() throws IOException {
         Client client = ClientBuilder.newClient();
         Response response = client.target(fileSystem.getURI("rest/version/info/", path)).request(MediaType.APPLICATION_JSON).get();
         checkResponse(response);
-        RestFileInfo info = response.readEntity(RestFileInfo.class);
+        VersionInfo info = response.readEntity(VersionInfo.class);
         return info;
     }
 
@@ -261,7 +265,7 @@ public class RestPath extends AbstractPath {
                     throw new IOException("Remote Exception " + ioError.getExceptionClass() + " " + ioError.getMessage());
                 }
             } else {
-                throw new IOException("Resonse code " + response.getStatus() + " " + response.getStatusInfo());
+                throw new IOException("Response code " + response.getStatus() + " " + response.getStatusInfo());
             }
         }
     }
@@ -289,8 +293,11 @@ public class RestPath extends AbstractPath {
         return new VersionedFileAttributeView() {
 
             @Override
-            public void setDefaultVersion(int version) {
-                throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            public void setDefaultVersion(int version) throws IOException {
+                Client client = ClientBuilder.newClient();
+                URI uri = fileSystem.getURI("rest/version/set/", path);
+                Response response = client.target(uri).request(MediaType.APPLICATION_JSON).put(Entity.entity(version, MediaType.APPLICATION_JSON));
+                checkResponse(response);            
             }
 
             @Override
@@ -337,18 +344,15 @@ public class RestPath extends AbstractPath {
 
     void delete() throws IOException {
         Client client = ClientBuilder.newClient();
-        Response response = client.target(fileSystem.getURI("rest/deleteFile/", path)).request(MediaType.APPLICATION_JSON).delete();
-        if (response.getStatus() != 200) {
-            throw new IOException("Error deleting file " + response.getStatus());
-        }
+        String restPath = isVersionedFile() ? "rest/version/deleteFile/" : "rest/deleteFile/";
+        Response response = client.target(fileSystem.getURI(restPath, path)).request(MediaType.APPLICATION_JSON).delete();
+        checkResponse(response);
     }
 
     void createDirectory(FileAttribute<?>[] attrs) throws IOException {
         Client client = ClientBuilder.newClient();
-        Response response = client.target(fileSystem.getURI("rest/createDirectory/", path)).request(MediaType.APPLICATION_JSON).get();
-        if (response.getStatus() != 200) {
-            throw new IOException("Error creating directory " + response.getStatus());
-        }
+        Response response = client.target(fileSystem.getURI("rest/createDirectory/", path)).request(MediaType.APPLICATION_JSON).get();        checkResponse(response);
+        checkResponse(response);
     }
 
     Map<String, Object> readAttributes(String attributes) throws IOException {
@@ -356,9 +360,13 @@ public class RestPath extends AbstractPath {
     }
 
     private boolean isVersionedFile() throws IOException {
-        RestFileInfo info = getRestFileInfo();
-        // TODO: Cache this?
-        return info.isVersionedFile();
+        try {
+            RestFileInfo info = getRestFileInfo();
+            // TODO: Cache this?
+            return info.isVersionedFile();
+        } catch (NoSuchFileException | FileNotFoundException x) {
+            return false;
+        }
     }
 
     @Override

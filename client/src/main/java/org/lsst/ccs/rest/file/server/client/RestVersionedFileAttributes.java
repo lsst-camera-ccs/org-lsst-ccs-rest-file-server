@@ -1,5 +1,6 @@
 package org.lsst.ccs.rest.file.server.client;
 
+import java.nio.file.attribute.BasicFileAttributes;
 import org.lsst.ccs.web.rest.file.server.data.VersionInfo;
 
 
@@ -7,11 +8,12 @@ import org.lsst.ccs.web.rest.file.server.data.VersionInfo;
  *
  * @author tonyj
  */
-class RestVersionedFileAttributes implements VersionedFileAttributes {
+class RestVersionedFileAttributes extends RestFileAttributes implements VersionedFileAttributes {
 
     private final VersionInfo info;
 
     RestVersionedFileAttributes(VersionInfo info) {
+        super(info.getVersions().get(info.getDefault()-1));
         this.info = info;
     }
 

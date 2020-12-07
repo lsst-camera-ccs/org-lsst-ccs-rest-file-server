@@ -12,5 +12,5 @@ public interface VersionedFileAttributeView extends FileAttributeView {
 
     VersionedFileAttributes readAttributes() throws IOException;
 
-    void setDefaultVersion(int version);
+    void setDefaultVersion(int version) throws IOException;
 }

@@ -7,6 +7,8 @@ import com.github.difflib.patch.Patch;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributeView;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -15,6 +17,7 @@ import java.util.Map;
 import javax.inject.Inject;
 import javax.servlet.ServletContext;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -68,8 +71,18 @@ public class VersionedFileServer {
             Map<String, Object> fileVersion = new LinkedHashMap<>();
             fileVersion.put("version", version);
             java.nio.file.Path child = cf.getPathForVersion(version);
-            fileVersion.put("lastModified", Files.getLastModifiedTime(child).toMillis());
-            fileVersion.put("size", Files.size(child));
+            BasicFileAttributes fileAttributes = Files.getFileAttributeView(child, BasicFileAttributeView.class).readAttributes();
+            fileVersion.put("name", child.getFileName().toString());
+            fileVersion.put("size", fileAttributes.size());
+            fileVersion.put("lastModified", fileAttributes.lastModifiedTime().toMillis());
+            fileVersion.put("fileKey", fileAttributes.fileKey().toString());
+            fileVersion.put("isDirectory", fileAttributes.isDirectory());
+            fileVersion.put("isOther", fileAttributes.isOther());
+            fileVersion.put("isRegularFile", fileAttributes.isRegularFile());
+            fileVersion.put("isSymbolicLink", fileAttributes.isSymbolicLink());
+            fileVersion.put("lastAccessTime", fileAttributes.lastAccessTime().toMillis());
+            fileVersion.put("creationTime", fileAttributes.creationTime().toMillis());
+            fileVersion.put("mimeType", Files.probeContentType(child));
             fileVersions.add(fileVersion);
         }
         result.put("versions", fileVersions);
@@ -166,6 +179,15 @@ public class VersionedFileServer {
             VersionedFile vf = VersionedFile.create(path, content);
             return Collections.singletonMap("version", 1);            
         }
+    }
+    
+    @DELETE
+    @Path("deleteFile/{filePath: .*}")
+    public Response deleteFile(@PathParam("filePath") String filePath) throws IOException {
+        java.nio.file.Path path = baseDir.resolve(filePath);
+        VersionedFile vf = new VersionedFile(path);
+        vf.delete();
+        return Response.ok().build();
     }
     
 }

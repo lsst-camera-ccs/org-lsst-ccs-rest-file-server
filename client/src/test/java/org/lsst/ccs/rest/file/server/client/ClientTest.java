@@ -1,6 +1,7 @@
 package org.lsst.ccs.rest.file.server.client;
 
 import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -109,7 +110,7 @@ public class ClientTest {
         assertTrue(Files.isDirectory(parent));
         List<Path> files = Files.list(parent).collect(Collectors.toList());
         assertEquals(1, files.size());
-        assertEquals(path, files.get(0));
+        assertTrue(Files.isSameFile(path, files.get(0)));
         List<String> lines = Files.lines(path).collect(Collectors.toList());
         assertEquals(1, lines.size());
         assertEquals(content, lines.get(0));
@@ -138,7 +139,7 @@ public class ClientTest {
         try {
             List<String> lines = Files.lines(pathInRestServer).collect(Collectors.toList());
             fail("should not get here!");
-        } catch (NoSuchFileException x) {
+        } catch (NoSuchFileException | FileNotFoundException x) {
             // OK, this is expected.
         }
     }
@@ -159,8 +160,8 @@ public class ClientTest {
         }
     }
     
-    //@Test
-    public void versionTest() throws IOException {
+    @Test
+    public void simpleVersionTest() throws IOException {
 
         Path pathInRestServer = restfs.getPath("versioned.txt");
         assertFalse(Files.exists(pathInRestServer));
@@ -168,30 +169,34 @@ public class ClientTest {
         try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer, VersionOpenOption.CREATE)) {
             writer.append(content);
         }
-        assertTrue(Files.exists(pathInRestServer));
-        final Path parent = pathInRestServer.getParent();
-        assertTrue(Files.isDirectory(parent));
-        Files.list(parent).forEach(System.out::println);
-        assertEquals(1, Files.list(parent).count());
-        List<String> lines = Files.lines(pathInRestServer).collect(Collectors.toList());
-        assertEquals(1, lines.size());
-        assertEquals(content, lines.get(0));
-
-        assertEquals(content.length(), Files.size(pathInRestServer));
-        BasicFileAttributes attributes = Files.readAttributes(pathInRestServer, BasicFileAttributes.class);
-        assertEquals(content.length(), attributes.size());
-
-        assertEquals("text/plain", Files.probeContentType(pathInRestServer));
-
-        Path child = parent.resolve("newDir");
-        Files.createDirectory(child);
-        Path newPath = child.resolve(pathInRestServer.getFileName());
-        Files.move(pathInRestServer, newPath);
-        assertFalse(Files.exists(pathInRestServer));
-        assertTrue(Files.exists(newPath));
-
-        Files.delete(newPath);
-        assertFalse(Files.exists(newPath));
-        Files.delete(child);
+        standardTest(pathInRestServer, content);
     }
+    @Test
+    public void extendedVersionTest() throws IOException {
+
+        Path pathInRestServer = restfs.getPath("versioned.txt");
+        assertFalse(Files.exists(pathInRestServer));
+        final String content = "This is a test file";
+        try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer, VersionOpenOption.CREATE)) {
+            writer.append(content);
+        }
+        BasicFileAttributes basicAttributes = Files.readAttributes(pathInRestServer, BasicFileAttributes.class);
+        //assertTrue(basicAttributes.isOther());
+        VersionedFileAttributes versionAttributes = Files.readAttributes(pathInRestServer, VersionedFileAttributes.class);
+        //assertTrue(versionAttributes.getDefaultVersion()==1);
+        VersionedFileAttributeView versionView = Files.getFileAttributeView(pathInRestServer, VersionedFileAttributeView.class);
+        assertTrue(versionView.readAttributes().getDefaultVersion() == 1);
+        assertTrue(versionView.readAttributes().getLatestVersion()== 1);
+        
+        try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer)) {
+            writer.append("This is some new content");
+        }        
+        assertTrue(versionView.readAttributes().getDefaultVersion() == 1);
+        assertTrue(versionView.readAttributes().getLatestVersion()== 2);
+        
+        versionView.setDefaultVersion(2);
+        assertTrue(versionView.readAttributes().getDefaultVersion() == 2);
+        assertTrue(versionView.readAttributes().getLatestVersion()== 2);
+    }
+
 }
