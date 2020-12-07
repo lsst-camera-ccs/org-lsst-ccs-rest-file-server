@@ -8,6 +8,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -19,10 +20,8 @@ import java.util.Properties;
 public class Main3 {
 
     public static void main(String[] args) throws IOException {
-        Map<String, Object> env = new HashMap<>();
-        env.put("useSSL", Boolean.TRUE);
         URI uri = URI.create("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/");
-        FileSystem restfs = FileSystems.newFileSystem(uri, env);
+        FileSystem restfs = FileSystems.newFileSystem(uri, Collections.<String, Object>emptyMap());
         Path pathInRestServer = restfs.getPath("test.properties");
         VersionedFileAttributeView attrs = Files.getFileAttributeView(pathInRestServer, VersionedFileAttributeView.class);
         int latest = attrs.readAttributes().getLatestVersion();

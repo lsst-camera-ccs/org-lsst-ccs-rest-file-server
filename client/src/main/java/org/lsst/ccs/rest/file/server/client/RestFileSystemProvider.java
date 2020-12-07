@@ -38,7 +38,14 @@ public class RestFileSystemProvider extends FileSystemProvider {
 
     @Override
     public FileSystem newFileSystem(URI uri, Map<String, ?> env) throws IOException {
-        return cache.computeIfAbsent(uri, u -> new RestFileSystem(this, u, env));
+        synchronized (cache) {
+            RestFileSystem result = cache.get(uri); 
+            if (result == null) {
+               result = new RestFileSystem(RestFileSystemProvider.this, uri, env);
+               cache.put(uri, result);
+            }
+            return result;
+        }
     }
 
     @Override
@@ -48,6 +55,9 @@ public class RestFileSystemProvider extends FileSystemProvider {
 
     @Override
     public Path getPath(URI uri) {
+        if (!getScheme().equals(uri.getScheme())) {
+            throw new IllegalArgumentException("Unsupported scheme "+uri);
+        }
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
@@ -127,6 +137,8 @@ public class RestFileSystemProvider extends FileSystemProvider {
     public <A extends BasicFileAttributes> A readAttributes(Path path, Class<A> type, LinkOption... options) throws IOException {
         if (type == BasicFileAttributes.class) {
             return type.cast(toRestPath(path).getAttributes());
+        } else if (type == VersionedFileAttributes.class) {
+            return type.cast(toRestPath(path).getVersionedAttributes());
         }
         return null;
     }

@@ -7,7 +7,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -21,10 +21,8 @@ public class Main2 {
         Map<String, Object> readAttributes = Files.readAttributes(path, "*");
         System.out.println(readAttributes);
 
-        Map<String, Object> env = new HashMap<>();
-        env.put("useSSL", Boolean.TRUE);
         URI uri = URI.create("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/");
-        FileSystem restfs = FileSystems.newFileSystem(uri, env);
+        FileSystem restfs = FileSystems.newFileSystem(uri, Collections.<String, Object>emptyMap());
         Path pathInRestServer = restfs.getPath("test.properties");
         Map<String, Object> readAttributes2 = Files.readAttributes(pathInRestServer, "*");
         System.out.println(readAttributes2);

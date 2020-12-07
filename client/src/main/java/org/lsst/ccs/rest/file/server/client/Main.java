@@ -7,9 +7,8 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributeView;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Stream;
 
 /**
@@ -19,11 +18,11 @@ import java.util.stream.Stream;
 public class Main {
 
     public static void main(String[] args) throws IOException {
-        Map<String, Object> env = new HashMap<>();
         URI uri = URI.create("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/");
-        FileSystem restfs = FileSystems.newFileSystem(uri, env);
+        FileSystem restfs = FileSystems.newFileSystem(uri, Collections.<String, Object>emptyMap());
         System.out.println("I got "+restfs);
         Path pathInRestServer = restfs.getPath("image-handling-dc01.app");
+        System.out.println(pathInRestServer.toUri());
         System.out.println("I got "+pathInRestServer);
         System.out.println(Files.exists(pathInRestServer));
         System.out.println(Files.size(pathInRestServer));

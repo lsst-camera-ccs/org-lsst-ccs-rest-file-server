@@ -181,9 +181,10 @@ public class ClientTest {
             writer.append(content);
         }
         BasicFileAttributes basicAttributes = Files.readAttributes(pathInRestServer, BasicFileAttributes.class);
-        //assertTrue(basicAttributes.isOther());
+        assertFalse(basicAttributes.isDirectory());
         VersionedFileAttributes versionAttributes = Files.readAttributes(pathInRestServer, VersionedFileAttributes.class);
-        //assertTrue(versionAttributes.getDefaultVersion()==1);
+        assertTrue(versionAttributes.getDefaultVersion()==1);
+        
         VersionedFileAttributeView versionView = Files.getFileAttributeView(pathInRestServer, VersionedFileAttributeView.class);
         assertTrue(versionView.readAttributes().getDefaultVersion() == 1);
         assertTrue(versionView.readAttributes().getLatestVersion()== 1);
