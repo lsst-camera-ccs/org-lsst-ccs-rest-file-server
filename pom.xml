@@ -18,8 +18,8 @@
     
     <modules>
         <module>common</module>
-        <module>war</module>
         <module>client</module>
+        <module>war</module>
     </modules>
 
     <properties>
