@@ -46,14 +46,14 @@
             <name>LSST Maven 2 central repository</name>
             <url>https://repo-nexus.lsst.org/nexus/content/groups/ccs-maven2-public/</url>
         </repository>
-    </repositories>
-    
-    <distributionManagement>
        <repository>
           <id>Central Maven repository</id>
           <name>Central Maven repository https</name>
           <url>https://repo.maven.apache.org/maven2</url>
        </repository>
+    </repositories>
+    
+    <distributionManagement>
        <site>
             <id>lsst-maven2-site</id>
             <name>LSST Maven2 central site repository</name>
