@@ -11,7 +11,7 @@
     
     <parent>
         <groupId>org.lsst</groupId>
-        <artifactId>org-lsst-ccs-parent-multi-module</artifactId>
+        <artifactId>org-lsst-ccs-parent</artifactId>
         <version>3.0.11</version>
         <relativePath />
     </parent>
