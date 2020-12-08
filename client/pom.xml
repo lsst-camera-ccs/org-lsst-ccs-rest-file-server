@@ -3,13 +3,13 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.lsst</groupId>
     <artifactId>org-lsst-ccs-rest-file-server-client</artifactId>
-    <version>1.0.0-test</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <parent>
         <groupId>org.lsst</groupId>
         <artifactId>rest-file-server</artifactId>
-        <version>1.0.0-test</version>
+        <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <name>LSST CCS - Rest File Server - Client</name>
