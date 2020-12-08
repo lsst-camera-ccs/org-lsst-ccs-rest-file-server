@@ -76,9 +76,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>${project.groupId}</groupId>
+            <groupId>org.lsst</groupId>
             <artifactId>rest-file-server-common</artifactId>
-            <version>${project.version}</version>
+            <version>1.0.0-SNAPSHOT</version>
         </dependency>
     </dependencies>
 
