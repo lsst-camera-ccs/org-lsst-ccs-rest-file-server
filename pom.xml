@@ -19,7 +19,9 @@
     <modules>
         <module>common</module>
         <module>client</module>
+        <!--
         <module>war</module>
+                -->
     </modules>
 
     <properties>
