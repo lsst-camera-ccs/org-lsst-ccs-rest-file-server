@@ -186,10 +186,10 @@ const Z=(t,i)=>{const s=t.startNode.parentNode,e=void 0===i?t.endNode:i.startNod
         `)}
       </ul>
     `}_renderVersionedFile(t){return B`
-      <p>Versioned file ${t.name}
+      <p>Versioned file ${t.name}</p>
       <file-versions restURL="${this.restURL}" path="${this.path}" name=${t.name}></file-versions>
     `}_renderFile(t){return B`
-      <p>File ${t.name} ${t.size} ${t.lastModified} ${t.mimeType} (<a href="${this.restURL+"download/"+this.path}">download</a>)
+      <p>File ${t.name} ${t.size} ${t.lastModified} ${t.mimeType} (<a href="${this.restURL+"download/"+this.path}">download</a>)</p>
       ${t.mimeType&&t.mimeType.startsWith("text/")?this._renderEditor(this.restURL+"download/"+this.path,t.name):null}
       ${t.mimeType&&t.mimeType.startsWith("image/")?this._renderImage(this.restURL+"download/"+this.path):null}
     `}_renderEditor(t,i){return B`

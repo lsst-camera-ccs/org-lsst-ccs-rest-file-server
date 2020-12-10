@@ -9,12 +9,14 @@ import java.nio.file.PathMatcher;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
@@ -30,6 +32,7 @@ public class RestFileSystem extends FileSystem {
     private final RestPath rootPath = new RestPath(this, "/", false);
     private final Map<String, ?> env;
     private final URI restURI;
+    private final Client client = ClientBuilder.newClient();
 
     public RestFileSystem(RestFileSystemProvider provider, URI uri, Map<String, ?> env) throws IOException {
         this.provider = provider;
@@ -42,7 +45,6 @@ public class RestFileSystem extends FileSystem {
         // Test if we can connect, handle redirects
         URI trialRestURI = UriBuilder.fromUri(uri).scheme(getURLSchema()).build();
         URI testURI = trialRestURI.resolve("rest/list/");
-        Client client = ClientBuilder.newClient();
         Response response = client.target(testURI).request(MediaType.APPLICATION_JSON).head();
         if (response.getStatus() / 100 == 3) {
             String location = response.getHeaderString("Location");
@@ -65,7 +67,7 @@ public class RestFileSystem extends FileSystem {
 
     @Override
     public void close() throws IOException {
-
+        client.close();
     }
 
     @Override
@@ -124,6 +126,14 @@ public class RestFileSystem extends FileSystem {
 
     URI getRestURI(String restPath, List<String> filePath) throws IOException {
         return restURI.resolve(restPath).resolve(String.join("/", filePath));
+    }
+    
+    WebTarget getRestTarget(String restPath, List<String> filePath) throws IOException {
+        return client.target(getRestURI(restPath, filePath));
+    }
+
+    WebTarget getRestTarget(URI uri) {
+        return client.target(uri);
     }
     
     URI getURI(List<String> filePath) {

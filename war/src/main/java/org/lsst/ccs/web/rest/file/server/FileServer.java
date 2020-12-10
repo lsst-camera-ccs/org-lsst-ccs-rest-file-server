@@ -3,6 +3,7 @@ package org.lsst.ccs.web.rest.file.server;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
@@ -93,6 +94,9 @@ public class FileServer {
     public Map<String, Object> info(@PathParam("filePath") String filePath) throws IOException {
         java.nio.file.Path file = baseDir.resolve(filePath);
         BasicFileAttributes fileAttributes = Files.getFileAttributeView(file, BasicFileAttributeView.class).readAttributes();
+        if (fileAttributes == null) {
+            throw new NoSuchFileException(filePath);
+        }
         Map<String, Object> fileProperties = new LinkedHashMap<>();
         fileProperties.put("name", file.getFileName().toString());
         fileProperties.put("size", fileAttributes.size());

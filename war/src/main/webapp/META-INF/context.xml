@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Context path="/RestFileServer">
-    <Valve className="org.apache.catalina.valves.rewrite.RewriteValve" />
+    <!-- <Valve className="org.apache.catalina.valves.rewrite.RewriteValve" /> -->
 </Context>
