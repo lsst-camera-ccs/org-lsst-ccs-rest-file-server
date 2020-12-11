@@ -10,10 +10,8 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.servlet.ServletContext;
 import javax.ws.rs.Consumes;
@@ -29,6 +27,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import org.jvnet.hk2.annotations.Optional;
+import org.lsst.ccs.web.rest.file.server.data.RestFileInfo;
 
 /**
  * Rest interface which works with any files
@@ -39,8 +38,8 @@ import org.jvnet.hk2.annotations.Optional;
 @Produces(MediaType.APPLICATION_JSON)
 public class FileServer {
 
-    @Inject 
-    @Optional  
+    @Inject
+    @Optional
     private java.nio.file.Path baseDir;
 
     @Context
@@ -49,13 +48,13 @@ public class FileServer {
             String initParameter = context.getInitParameter("org.lsst.ccs.web.rest.file.server.baseDir");
             if (initParameter != null) {
                 baseDir = Paths.get(initParameter);
-            } 
+            }
         }
         if (baseDir == null) {
             baseDir = Paths.get("/home/tonyj/ConfigTest/");
         }
     }
-    
+
     @GET
     @Path("list")
     public Object list() throws IOException {
@@ -64,53 +63,33 @@ public class FileServer {
 
     @GET
     @Path("list/{filePath: .*}")
-    public Object list(@PathParam("filePath") String filePath) throws IOException {
+    public RestFileInfo list(@PathParam("filePath") String filePath) throws IOException {
         java.nio.file.Path file = baseDir.resolve(filePath);
-        Map<String, Object> fileProperties = info(filePath);
+        RestFileInfo fileProperties = info(filePath);
         boolean isDirectory = Files.isDirectory(file);
         if (isDirectory) {
-            Stream<java.nio.file.Path> listFiles = Files.list(file);
-            List<Map<String, Object>> result = new ArrayList<>();
-            listFiles.forEach((child) -> {
-                try {
-                    Map<String, Object> childProperties = new LinkedHashMap<>();
-                    childProperties.put("name", child.getFileName().toString());
-                    childProperties.put("size", Files.size(child));
-                    childProperties.put("lastModified", Files.getLastModifiedTime(child).toMillis());
-                    childProperties.put("isVersionedFile", VersionedFile.isVersionedFile(child));
-                    result.add(childProperties);
-                } catch (IOException x) {
-                    System.out.println(x.getMessage());
-                }
-            });
-            result.sort((Map<String, Object> o1, Map<String, Object> o2) -> o1.get("name").toString().compareTo(o2.get("name").toString()));
-            fileProperties.put("children", result);
+            List<java.nio.file.Path> listFiles = Files.list(file).collect(Collectors.toList());
+            List<RestFileInfo> children = new ArrayList<>();
+            for (java.nio.file.Path child : listFiles) {
+                BasicFileAttributes childAttributes = Files.getFileAttributeView(child, BasicFileAttributeView.class).readAttributes();
+                RestFileInfo childProperties = new RestFileInfo(child, childAttributes, VersionedFile.isVersionedFile(child));
+                children.add(childProperties);
+            }
+            children.sort((RestFileInfo o1, RestFileInfo o2) -> o1.getName().compareTo(o2.getName()));
+            fileProperties.setChildren(children);
         }
         return fileProperties;
     }
 
     @GET
     @Path("info/{filePath: .*}")
-    public Map<String, Object> info(@PathParam("filePath") String filePath) throws IOException {
+    public RestFileInfo info(@PathParam("filePath") String filePath) throws IOException {
         java.nio.file.Path file = baseDir.resolve(filePath);
         BasicFileAttributes fileAttributes = Files.getFileAttributeView(file, BasicFileAttributeView.class).readAttributes();
         if (fileAttributes == null) {
             throw new NoSuchFileException(filePath);
         }
-        Map<String, Object> fileProperties = new LinkedHashMap<>();
-        fileProperties.put("name", file.getFileName().toString());
-        fileProperties.put("size", fileAttributes.size());
-        fileProperties.put("lastModified", fileAttributes.lastModifiedTime().toMillis());
-        fileProperties.put("fileKey", fileAttributes.fileKey().toString());
-        fileProperties.put("isDirectory", fileAttributes.isDirectory());
-        fileProperties.put("isOther", fileAttributes.isOther());
-        fileProperties.put("isRegularFile", fileAttributes.isRegularFile());
-        fileProperties.put("isSymbolicLink", fileAttributes.isSymbolicLink());
-        fileProperties.put("lastAccessTime", fileAttributes.lastAccessTime().toMillis());
-        fileProperties.put("creationTime", fileAttributes.creationTime().toMillis());
-        fileProperties.put("mimeType", Files.probeContentType(file));
-        fileProperties.put("isVersionedFile", VersionedFile.isVersionedFile(file));
-        return fileProperties;
+        return new RestFileInfo(file, fileAttributes, VersionedFile.isVersionedFile(file));
     }
 
     @GET
@@ -156,7 +135,7 @@ public class FileServer {
         Files.move(sourcePath, targetPath, StandardCopyOption.ATOMIC_MOVE);
         return Response.ok().build();
     }
-    
+
     @DELETE
     @Path("deleteFile/{filePath: .*}")
     public Response deleteFile(@PathParam("filePath") String filePath) throws IOException {

@@ -34,7 +34,7 @@ class RestFileAttributes implements BasicFileAttributes {
 
     @Override
     public boolean isRegularFile() {
-        return info.isRegularFile();
+        return info.isRegularFile() && !info.isVersionedFile();
     }
 
     @Override
@@ -49,7 +49,7 @@ class RestFileAttributes implements BasicFileAttributes {
 
     @Override
     public boolean isOther() {
-        return info.isOther();
+        return info.isOther() || info.isVersionedFile();
     }
 
     @Override

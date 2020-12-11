@@ -2,6 +2,7 @@ package org.lsst.ccs.rest.file.server.client.implementation;
 
 import java.io.IOException;
 import java.nio.file.FileStore;
+import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileStoreAttributeView;
 
@@ -11,7 +12,7 @@ import java.nio.file.attribute.FileStoreAttributeView;
  */
 public class RestFileStore extends FileStore {
 
-    private RestFileSystem fileSystem;
+    private final RestFileSystem fileSystem;
 
     RestFileStore(RestFileSystem fileSystem) {
         this.fileSystem = fileSystem;
@@ -49,22 +50,22 @@ public class RestFileStore extends FileStore {
 
     @Override
     public boolean supportsFileAttributeView(Class<? extends FileAttributeView> type) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return type.isAssignableFrom(BasicFileAttributeView.class) || type.isAssignableFrom(RestVersionedFileAttributes.class);
     }
 
     @Override
     public boolean supportsFileAttributeView(String name) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return fileSystem.supportedFileAttributeViews().contains(name);
     }
 
     @Override
     public <V extends FileStoreAttributeView> V getFileStoreAttributeView(Class<V> type) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return null;
     }
 
     @Override
     public Object getAttribute(String attribute) throws IOException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return null;
     }
     
 }

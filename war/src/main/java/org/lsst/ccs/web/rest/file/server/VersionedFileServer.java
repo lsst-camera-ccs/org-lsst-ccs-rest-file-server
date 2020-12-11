@@ -11,9 +11,7 @@ import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import javax.inject.Inject;
 import javax.servlet.ServletContext;
 import javax.ws.rs.Consumes;
@@ -30,6 +28,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import org.jvnet.hk2.annotations.Optional;
+import org.lsst.ccs.web.rest.file.server.data.VersionInfo;
+import org.lsst.ccs.web.rest.file.server.data.VersionInfo.Version;
 
 /**
  * Rest interface with functions specific to versioned files
@@ -59,33 +59,22 @@ public class VersionedFileServer {
 
     @GET
     @Path("info/{filePath: .*}")
-    public Object info(@PathParam("filePath") String filePath) throws IOException {
+    public VersionInfo info(@PathParam("filePath") String filePath) throws IOException {
         java.nio.file.Path path = baseDir.resolve(filePath);
         VersionedFile cf = new VersionedFile(path);
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("default", cf.getDefaultVersion());
-        result.put("latest", cf.getLatestVersion());
-        List<Map<String, Object>> fileVersions = new ArrayList<>();
+        VersionInfo result = new VersionInfo();
+        result.setDefault(cf.getDefaultVersion());
+        result.setLatest(cf.getLatestVersion());
+        List<Version> fileVersions = new ArrayList<>();
         int[] versions = cf.getVersions();      
         for (int version : versions) {
-            Map<String, Object> fileVersion = new LinkedHashMap<>();
-            fileVersion.put("version", version);
             java.nio.file.Path child = cf.getPathForVersion(version);
             BasicFileAttributes fileAttributes = Files.getFileAttributeView(child, BasicFileAttributeView.class).readAttributes();
-            fileVersion.put("name", child.getFileName().toString());
-            fileVersion.put("size", fileAttributes.size());
-            fileVersion.put("lastModified", fileAttributes.lastModifiedTime().toMillis());
-            fileVersion.put("fileKey", fileAttributes.fileKey().toString());
-            fileVersion.put("isDirectory", fileAttributes.isDirectory());
-            fileVersion.put("isOther", fileAttributes.isOther());
-            fileVersion.put("isRegularFile", fileAttributes.isRegularFile());
-            fileVersion.put("isSymbolicLink", fileAttributes.isSymbolicLink());
-            fileVersion.put("lastAccessTime", fileAttributes.lastAccessTime().toMillis());
-            fileVersion.put("creationTime", fileAttributes.creationTime().toMillis());
-            fileVersion.put("mimeType", Files.probeContentType(child));
-            fileVersions.add(fileVersion);
+            Version info = new Version(child, fileAttributes);
+            info.setVersion(version);
+            fileVersions.add(info);
         }
-        result.put("versions", fileVersions);
+        result.setVersions(fileVersions);
         return result;
     }
 

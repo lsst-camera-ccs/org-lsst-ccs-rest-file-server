@@ -1,25 +1,24 @@
 package org.lsst.ccs.rest.file.server.cli;
 
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Collections;
 import java.util.concurrent.Callable;
 import java.util.stream.Stream;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Help.Ansi;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 /**
  * Simple ls command for use with rest server
+ *
  * @author tonyj
  */
-@Command(name="ls", description = "List files on remove rest file server")
+@Command(name = "ls", usageHelpAutoWidth = true, description = "List files on remove rest file server")
 public class ListCommand implements Callable<Void> {
 
     @CommandLine.ParentCommand
@@ -28,26 +27,44 @@ public class ListCommand implements Callable<Void> {
     @Option(names = {"-l", "--long"}, description = "Detailed listing")
     private boolean showLong;
 
-    @Parameters(paramLabel="<path>", defaultValue="/", description = "Path to list")    
+    @Option(names = {"-h", "--human-readable"}, description = "with -l, print sizes in human readable format (e.g., 1K 234M 2G)")
+    private boolean humanReadable;
+
+    @Option(names = {"--si"}, description = "like -h, but use powers of 1000 not 1024")
+    private boolean si;
+
+    @Option(names = {"--color"}, description = "colorize the output", defaultValue = "true")
+    private boolean colorize;
+
+    @Option(names = {"--full-time"}, description = "Show full date format (with -l)")
+    private boolean fullTime;
+
+    @Parameters(paramLabel = "<path>", defaultValue = "/", description = "Path to list")
     private String path;
 
     @Override
     public Void call() throws IOException {
         FileSystem restfs = parent.createFileSystem();
         Path restPath = restfs.getPath(path);
+        FileSizeFormatter fsf = new FileSizeFormatter(humanReadable, si);
+        FileDateFormatter fdf = new FileDateFormatter(fullTime);
+        Ansi ansi = colorize ? Ansi.AUTO : Ansi.OFF;
         try (Stream<Path> directoryStream = Files.list(restPath)) {
-            if (showLong) {
-                directoryStream.forEach(p -> {
-                    try {
-                        BasicFileAttributes bfa = Files.readAttributes(p, BasicFileAttributes.class);
-                        System.out.printf("%d %s %s\n", bfa.size(), bfa.lastModifiedTime(), p.getFileName());
-                    } catch (IOException x) {
-                        System.out.println("IOException: "+p.getFileName());
+            directoryStream.forEach(p -> {
+                try {
+                    BasicFileAttributes bfa = Files.readAttributes(p, BasicFileAttributes.class);
+                    String color = bfa.isDirectory() ? "blue" : bfa.isOther() ? "green" : "white";
+                    if (showLong || si) {
+                        String line = String.format("@|%s %10s %s %s|@", color, fsf.format(bfa.size()), fdf.format(bfa.lastModifiedTime()), p.getFileName());
+                        System.out.println(ansi.string(line));
+                    } else {
+                        String line = String.format("@|%s %s|@", color, p.getFileName());
+                        System.out.println(ansi.string(line));
                     }
-                });
-            } else {
-                directoryStream.forEach(System.out::println);
-            }
+                } catch (IOException x) {
+                    System.out.println("IOException: " + p.getFileName());
+                }
+            });
         }
         return null;
     }

@@ -63,6 +63,14 @@
   "allDeclaredMethods":true
 },
 {
+  "name":"java.lang.ProcessBuilder",
+  "methods":[{"name":"redirectError","parameterTypes":["java.lang.ProcessBuilder$Redirect"] }]
+},
+{
+  "name":"java.lang.ProcessBuilder$Redirect",
+  "fields":[{"name":"INHERIT"}]
+},
+{
   "name":"java.lang.String"
 },
 {
@@ -71,6 +79,10 @@
 {
   "name":"java.lang.System",
   "methods":[{"name":"console","parameterTypes":[] }]
+},
+{
+  "name":"java.nio.file.FileSystemException",
+  "methods":[{"name":"<init>","parameterTypes":["java.lang.String"] }]
 },
 {
   "name":"java.nio.file.NoSuchFileException",
@@ -471,6 +483,12 @@
 },
 {
   "name":"org.lsst.ccs.rest.file.server.cli.ListCommand",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.lsst.ccs.rest.file.server.cli.MoveCommand",
   "allDeclaredFields":true,
   "allDeclaredMethods":true,
   "methods":[{"name":"<init>","parameterTypes":[] }]

@@ -56,26 +56,40 @@ import org.lsst.ccs.web.rest.file.server.data.RestFileInfo;
  */
 class RestPath extends AbstractPath {
 
-    private final static LinkedList<String> emptyPath = new LinkedList<>();
+    private final static LinkedList<String> EMPTY_PATH = new LinkedList<>();
     private final RestFileSystem fileSystem;
     private final LinkedList<String> path;
     private final boolean isReadOnly;
     private final boolean isAbsolute;
+    private final RestFileInfo presetInfo;
     private Boolean isVersionedFile;
 
     RestPath(RestFileSystem fileSystem, String path, boolean isReadOnly) {
         this.fileSystem = fileSystem;
         this.isAbsolute = path.startsWith("/");
-        if (this.isAbsolute) path = path.substring(1);
-        this.path = path.isEmpty() ? emptyPath : new LinkedList<>(Arrays.asList(path.split("/")));
+        if (this.isAbsolute) {
+            path = path.substring(1);
+        }
+        this.path = path.isEmpty() ? EMPTY_PATH : new LinkedList<>(Arrays.asList(path.split("/")));
         this.isReadOnly = isReadOnly;
+        this.presetInfo = null;
     }
 
-    RestPath(RestFileSystem fileSystem, List<String> path, boolean isReadOnly, boolean isAbsolute) {
+    private RestPath(RestFileSystem fileSystem, List<String> path, boolean isReadOnly, boolean isAbsolute) {
         this.fileSystem = fileSystem;
         this.path = new LinkedList<>(path);
         this.isReadOnly = isReadOnly;
         this.isAbsolute = isAbsolute;
+        this.presetInfo = null;
+    }
+    
+    private RestPath(RestFileSystem fileSystem, List<String> path, boolean isReadOnly, boolean isAbsolute, RestFileInfo info) {
+        this.fileSystem = fileSystem;
+        this.path = new LinkedList<>(path);
+        this.isReadOnly = isReadOnly;
+        this.isAbsolute = isAbsolute;
+        this.presetInfo = info;
+        this.isVersionedFile = info.isVersionedFile();
     }
 
     @Override
@@ -163,6 +177,7 @@ class RestPath extends AbstractPath {
     }
 
     InputStream newInputStream(OpenOption[] options) throws IOException {
+        // TODO: Remove explicit use of HttpConnection
         if (isVersionedFile()) {
             VersionOption vo = getOptions(options, VersionOption.class);
             if (vo == null) {
@@ -181,7 +196,7 @@ class RestPath extends AbstractPath {
 
         // TODO: Deal with options
         VersionOpenOption voo = getOptions(options, VersionOpenOption.class);
-        String restPath = isVersionedFile() || voo != null ? "rest/version/upload/" : "rest/upload/" ;
+        String restPath = isVersionedFile() || voo != null ? "rest/version/upload/" : "rest/upload/";
         WebTarget target = fileSystem.getRestTarget(restPath, path);
         BlockingQueue<Future<Response>> queue = new ArrayBlockingQueue<>(1);
         PipedOutputStream out = new PipedOutputStream() {
@@ -197,7 +212,7 @@ class RestPath extends AbstractPath {
                     throw new IOException("Error during file close", x.getCause());
                 }
             }
-            
+
         };
         PipedInputStream in = new PipedInputStream(out);
         Future<Response> futureResponse = target.request(MediaType.APPLICATION_JSON).async().post(Entity.entity(in, MediaType.APPLICATION_OCTET_STREAM));
@@ -224,7 +239,9 @@ class RestPath extends AbstractPath {
         RestFileInfo info = getRestFileInfo();
         if (info.isVersionedFile()) {
             VersionInfo vinfo = getVersionedRestFileInfo();
-            return new RestFileAttributes(vinfo.getVersions().get(vinfo.getDefault()-1));
+            RestFileInfo latest = vinfo.getVersions().get(vinfo.getDefault() - 1);
+            latest.setVersionedFile(true);
+            return new RestFileAttributes(latest);
         } else {
             return new RestFileAttributes(info);
         }
@@ -248,10 +265,14 @@ class RestPath extends AbstractPath {
     }
 
     private RestFileInfo getRestFileInfo() throws IOException {
-        Response response = fileSystem.getRestTarget("rest/info/", path).request(MediaType.APPLICATION_JSON).get();
-        checkResponse(response);
-        RestFileInfo info = response.readEntity(RestFileInfo.class);
-        return info;
+        if (presetInfo != null) {
+            return presetInfo;
+        } else {
+            Response response = fileSystem.getRestTarget("rest/info/", path).request(MediaType.APPLICATION_JSON).get();
+            checkResponse(response);
+            RestFileInfo info = response.readEntity(RestFileInfo.class);
+            return info;
+        }
     }
 
     private void checkResponse(Response response) throws IOException {
@@ -297,7 +318,7 @@ class RestPath extends AbstractPath {
             @Override
             public void setDefaultVersion(int version) throws IOException {
                 Response response = fileSystem.getRestTarget("rest/version/set/", path).request(MediaType.APPLICATION_JSON).put(Entity.entity(version, MediaType.APPLICATION_JSON));
-                checkResponse(response);            
+                checkResponse(response);
             }
 
             @Override
@@ -331,7 +352,7 @@ class RestPath extends AbstractPath {
         List<Path> paths = children.stream().map(fileInfo -> {
             List<String> newPath = new ArrayList<>(path);
             newPath.add(fileInfo.getName());
-            return new RestPath(fileSystem, newPath, isReadOnly, true);
+            return new RestPath(fileSystem, newPath, isReadOnly, true, fileInfo);
         }).collect(Collectors.toList());
         return new DirectoryStream<Path>() {
             @Override
@@ -357,7 +378,7 @@ class RestPath extends AbstractPath {
     }
 
     Map<String, Object> readAttributes(String attributes) throws IOException {
-        return getRestFileInfo().getAsMap();
+        return getRestFileInfo().toMap();
     }
 
     private synchronized boolean isVersionedFile() throws IOException {

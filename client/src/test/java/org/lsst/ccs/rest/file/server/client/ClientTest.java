@@ -38,6 +38,7 @@ public class ClientTest {
 
     private static TestServer testServer;
     private static FileSystem restfs;
+    private static URI restRootURI;
 
     public ClientTest() {
     }
@@ -45,8 +46,8 @@ public class ClientTest {
     @BeforeAll
     public static void setUpClass() throws URISyntaxException, IOException {
         testServer = new TestServer();
-        URI uri = UriBuilder.fromUri(testServer.getServerURI()).scheme("ccs").build();
-        restfs = FileSystems.newFileSystem(uri, Collections.<String, Object>emptyMap());
+        restRootURI = UriBuilder.fromUri(testServer.getServerURI()).scheme("ccs").build();
+        restfs = FileSystems.newFileSystem(restRootURI, Collections.<String, Object>emptyMap());
     }
 
     @AfterAll
@@ -199,5 +200,26 @@ public class ClientTest {
         assertTrue(versionView.readAttributes().getDefaultVersion() == 2);
         assertTrue(versionView.readAttributes().getLatestVersion()== 2);
     }
-
+    
+    @Test
+    public void pathTest() throws IOException {
+        Path path = Paths.get(restRootURI.resolve("rhubarb/test.file"));
+        assertEquals("ccs", path.toUri().getScheme());
+        assertEquals("test.file", path.getFileName().toString());
+        
+        // FIXME: Should be moved elsewhere, depends on external URL
+        URI uri = URI.create("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/newTest.properties");
+        Path path2 = Paths.get(uri);
+        System.out.println(path2.toUri());
+        BasicFileAttributes bfa = Files.readAttributes(path2, BasicFileAttributes.class);
+        System.out.println(bfa.isOther());
+    }
+    
+//    @Test 
+//    public void globTest() throws IOException {
+//        FileSystem fs = FileSystems.getDefault();
+//        //PathMatcher pathMatcher = fs.getPathMatcher("/home/tonyj/Data/*.ser");
+//        Path dir = fs.getPath("/home/tonyj/Data/");
+//        Files.newDirectoryStream(dir, "*.ser").forEach(System.out::println);
+//    }
 }

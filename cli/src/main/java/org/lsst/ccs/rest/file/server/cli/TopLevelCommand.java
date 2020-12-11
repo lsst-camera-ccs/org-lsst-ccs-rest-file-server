@@ -16,10 +16,11 @@ import picocli.CommandLine.Option;
  *
  * @author tonyj
  */
-@Command(name = "rfs", subcommands = {
+@Command(name = "rfs", usageHelpAutoWidth = true, subcommands = {
     CatCommand.class,
     EditCommand.class,
     ListCommand.class, 
+    MoveCommand.class,
     HelpCommand.class})
 public class TopLevelCommand {
 

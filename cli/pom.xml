@@ -15,6 +15,10 @@
 
     <name>LSST CCS - Rest File Server - Command Line</name>
     
+    <properties>
+        <graalvm.version>20.3.0</graalvm.version>
+    </properties>
+    
     <distributionManagement>
         <site>
             <id>lsst-maven2-site</id>
@@ -65,6 +69,54 @@
                     </compilerArgs>
                 </configuration>
             </plugin>
-        </plugins>    
+        </plugins>
     </build>
+    
+    <profiles>
+        <profile>
+            <id>native-image</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>org.graalvm.sdk</groupId>
+                    <artifactId>graal-sdk</artifactId>
+                    <version>${graalvm.version}</version>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.nativeimage</groupId>
+                        <artifactId>native-image-maven-plugin</artifactId>
+                        <version>${graalvm.version}</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>native-image</goal>
+                                </goals>
+                                <phase>package</phase>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <skip>false</skip>
+                            <imageName>rfs</imageName>
+                            <mainClass>org.lsst.ccs.rest.file.server.cli.TopLevelCommand</mainClass>
+                            <buildArgs>
+                                --report-unsupported-elements-at-runtime 
+                                --allow-incomplete-classpath 
+                                --no-fallback 
+                                --enable-url-protocols=http 
+                                --enable-url-protocols=https 
+                                --initialize-at-build-time=org.lsst.ccs.rest.file.server.client.implementation.RestFileSystemProvider
+                                --static
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>    
+            </build>           
+        </profile>
+    </profiles>
 </project>

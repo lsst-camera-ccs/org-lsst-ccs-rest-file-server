@@ -1,5 +1,9 @@
 package org.lsst.ccs.web.rest.file.server.data;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.util.HashMap;
 import java.util.List;
@@ -23,6 +27,26 @@ public class RestFileInfo {
     private boolean isSymbolicLink;
     private boolean isVersionedFile;
     private List<RestFileInfo> children;
+
+    public RestFileInfo() {
+        
+    }
+    
+    public RestFileInfo(Path file, BasicFileAttributes fileAttributes, boolean isVersionedFile) throws IOException {
+        this.name = file.getFileName().toString();
+        this.size = fileAttributes.size();
+        this.lastModified = fileAttributes.lastModifiedTime().toMillis();
+        this.fileKey =  fileAttributes.fileKey().toString();
+        this.isDirectory = fileAttributes.isDirectory();
+        this.isOther = fileAttributes.isOther();
+        this.isRegularFile = fileAttributes.isRegularFile();
+        this.isSymbolicLink = fileAttributes.isSymbolicLink();
+        this.lastAccessTime = fileAttributes.lastAccessTime().toMillis();
+        this.creationTime = fileAttributes.creationTime().toMillis();
+        this.mimeType = Files.probeContentType(file);
+        this.isVersionedFile = isVersionedFile;
+    }
+
 
     public long getLastModified() {
         return lastModified;
@@ -84,7 +108,7 @@ public class RestFileInfo {
         return isDirectory && !isVersionedFile;
     }
 
-    public void setIsDirectory(boolean isDirectory) {
+    public void setDirectory(boolean isDirectory) {
         this.isDirectory = isDirectory;
     }
 
@@ -92,7 +116,7 @@ public class RestFileInfo {
         return isOther || isVersionedFile;
     }
 
-    public void setIsOther(boolean isOther) {
+    public void setOther(boolean isOther) {
         this.isOther = isOther;
     }
 
@@ -100,7 +124,7 @@ public class RestFileInfo {
         return isRegularFile;
     }
 
-    public void setIsRegularFile(boolean isRegularFile) {
+    public void setRegularFile(boolean isRegularFile) {
         this.isRegularFile = isRegularFile;
     }
 
@@ -108,7 +132,7 @@ public class RestFileInfo {
         return isSymbolicLink;
     }
 
-    public void setIsSymbolicLink(boolean isSymbolicLink) {
+    public void setSymbolicLink(boolean isSymbolicLink) {
         this.isSymbolicLink = isSymbolicLink;
     }
 
@@ -116,7 +140,7 @@ public class RestFileInfo {
         return isVersionedFile;
     }
 
-    public void setIsVersionedFile(boolean isVersionedFile) {
+    public void setVersionedFile(boolean isVersionedFile) {
         this.isVersionedFile = isVersionedFile;
     }
 
@@ -133,7 +157,7 @@ public class RestFileInfo {
         return "RestFileInfo{" + "lastModified=" + lastModified + ", size=" + size + ", mimeType=" + mimeType + ", name=" + name + '}';
     }
 
-    public Map<String, Object> getAsMap() {
+    public Map<String, Object> toMap() {
         Map<String, Object> result = new HashMap<>();
         result.put("lastAccessTime", FileTime.fromMillis(lastAccessTime));
         result.put("lastModifiedTime", FileTime.fromMillis(lastModified));

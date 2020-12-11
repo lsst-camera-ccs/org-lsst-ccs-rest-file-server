@@ -1,6 +1,5 @@
 package org.lsst.ccs.rest.file.server.client.implementation;
 
-import java.nio.file.attribute.BasicFileAttributes;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributes;
 import org.lsst.ccs.web.rest.file.server.data.VersionInfo;
 

@@ -9,7 +9,7 @@ import java.nio.file.AccessMode;
 import java.nio.file.CopyOption;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileStore;
-import java.nio.file.FileSystem;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.LinkOption;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
@@ -19,9 +19,13 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.spi.FileSystemProvider;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.ws.rs.core.UriBuilder;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributeView;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributes;
 
@@ -31,6 +35,7 @@ import org.lsst.ccs.rest.file.server.client.VersionedFileAttributes;
  */
 public class RestFileSystemProvider extends FileSystemProvider {
 
+    private final static Map<String, Object> NO_ENV = Collections.<String, Object>emptyMap();
     private final Map<URI, RestFileSystem> cache = new ConcurrentHashMap<>();
 
     @Override
@@ -39,28 +44,50 @@ public class RestFileSystemProvider extends FileSystemProvider {
     }
 
     @Override
-    public FileSystem newFileSystem(URI uri, Map<String, ?> env) throws IOException {
+    public RestFileSystem newFileSystem(URI uri, Map<String, ?> env) throws IOException {
+        if (env == null) {
+            env = NO_ENV;
+        }
         synchronized (cache) {
-            RestFileSystem result = cache.get(uri); 
+            RestFileSystem result = cache.get(uri);
             if (result == null) {
-               result = new RestFileSystem(RestFileSystemProvider.this, uri, env);
-               cache.put(uri, result);
+                result = new RestFileSystem(RestFileSystemProvider.this, uri, env);
+                cache.put(uri, result);
             }
             return result;
         }
     }
 
     @Override
-    public FileSystem getFileSystem(URI uri) {
+    public RestFileSystem getFileSystem(URI uri) {
         return cache.get(uri);
     }
 
     @Override
     public Path getPath(URI uri) {
         if (!getScheme().equals(uri.getScheme())) {
-            throw new IllegalArgumentException("Unsupported scheme "+uri);
+            throw new IllegalArgumentException("Unsupported scheme " + uri);
         }
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        // Unfortunately we have no reliable way to tell where the rest server URL ends, and the file path starts
+        // so we use some hueristics to try to figure it out
+        for (Map.Entry<URI, RestFileSystem> entry : cache.entrySet()) {
+            URI existingURI = entry.getKey();
+            if (uri.toString().startsWith(existingURI.toString())) {
+                URI relativeURI = existingURI.relativize(uri);
+                return new RestPath(entry.getValue(), relativeURI.toString(), false);
+            }
+        }
+        List<String> path = Arrays.asList(uri.getPath().substring(1).split("/"));
+        for (int i = 0; i < path.size(); i++) {
+            URI trialURI = UriBuilder.fromUri(uri).replacePath(String.join("/", path.subList(0, i)) + "/").build();
+            try {
+                RestFileSystem rfs = newFileSystem(trialURI, null);
+                return rfs.getPath(path.get(i), String.join("/", path.subList(i + 1, path.size())));
+            } catch (IOException x) {
+                // OK, just carry on
+            }
+        }
+        throw new FileSystemNotFoundException("Cannot create path for " + uri);
     }
 
     @Override
@@ -105,8 +132,12 @@ public class RestFileSystemProvider extends FileSystemProvider {
 
     @Override
     public boolean isSameFile(Path path, Path path2) throws IOException {
-        if (path == path2) return true;
-        if (path.getFileSystem() != path2.getFileSystem()) return false;
+        if (path == path2) {
+            return true;
+        }
+        if (path.getFileSystem() != path2.getFileSystem()) {
+            return false;
+        }
         return toRestPath(path).isSameFile(toRestPath(path2));
     }
 

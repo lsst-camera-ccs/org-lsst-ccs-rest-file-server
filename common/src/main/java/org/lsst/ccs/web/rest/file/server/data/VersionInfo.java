@@ -1,5 +1,8 @@
 package org.lsst.ccs.web.rest.file.server.data;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,8 +43,16 @@ public class VersionInfo {
     
     
     
-    public static class Version  extends RestFileInfo {
+    public static class Version extends RestFileInfo {
         private int version;
+        
+        public Version() {
+           super(); 
+        }
+        
+        public Version(Path file, BasicFileAttributes fileAttributes) throws IOException {
+            super(file, fileAttributes, false);
+        }
 
         public int getVersion() {
             return version;

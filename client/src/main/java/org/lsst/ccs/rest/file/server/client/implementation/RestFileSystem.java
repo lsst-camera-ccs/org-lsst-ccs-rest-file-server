@@ -4,13 +4,14 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,7 +34,12 @@ public class RestFileSystem extends FileSystem {
     private final Map<String, ?> env;
     private final URI restURI;
     private final Client client = ClientBuilder.newClient();
-
+    private static final Set<String> SUPPORTED_VIEWS = new HashSet<>();
+    static {
+        SUPPORTED_VIEWS.add("basic");
+        SUPPORTED_VIEWS.add("versioned");
+    }
+ 
     public RestFileSystem(RestFileSystemProvider provider, URI uri, Map<String, ?> env) throws IOException {
         this.provider = provider;
         this.uri = uri;
@@ -97,11 +103,11 @@ public class RestFileSystem extends FileSystem {
 
     @Override
     public Set<String> supportedFileAttributeViews() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return SUPPORTED_VIEWS;
     }
 
     @Override
-    public Path getPath(String first, String... more) {
+    public RestPath getPath(String first, String... more) {
         if (more.length == 0) {
             return new RestPath(this, first, false);
         } else {
@@ -111,7 +117,7 @@ public class RestFileSystem extends FileSystem {
 
     @Override
     public PathMatcher getPathMatcher(String syntaxAndPattern) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        return FileSystems.getDefault().getPathMatcher(syntaxAndPattern);
     }
 
     @Override
