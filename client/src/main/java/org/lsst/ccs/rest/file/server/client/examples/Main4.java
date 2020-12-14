@@ -9,7 +9,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Properties;
-import org.lsst.ccs.rest.file.server.client.VersionOpenOption;
 
 /**
  *
@@ -26,7 +25,7 @@ public class Main4 {
         Properties props = new Properties();
         props.put("key", String.valueOf(Math.random()));
         props.put("key2", String.valueOf(Math.random()));        
-        try (OutputStream out = Files.newOutputStream(pathInRestServer, VersionOpenOption.CREATE_OR_UPDATE)) {
+        try (OutputStream out = Files.newOutputStream(pathInRestServer)) {
             props.store(out, "This is a comment");
         }
     }

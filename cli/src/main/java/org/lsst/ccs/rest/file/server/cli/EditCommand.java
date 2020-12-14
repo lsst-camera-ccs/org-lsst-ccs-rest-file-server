@@ -2,10 +2,12 @@ package org.lsst.ccs.rest.file.server.cli;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
@@ -16,6 +18,7 @@ import java.util.concurrent.Callable;
 import java.util.zip.CRC32;
 import java.util.zip.CheckedOutputStream;
 import java.util.zip.Checksum;
+import org.lsst.ccs.rest.file.server.client.VersionOpenOption;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -35,6 +38,9 @@ public class EditCommand implements Callable<Void> {
     @Option(names = {"-e", "--editor"}, description = "Editor command to use, defaults to $EDITOR if defined, otherwise vi")
     private String editor;
 
+    @Option(names = {"-v", "--version"}, description = "If a versioned file, the version to edit", defaultValue = "latest", showDefaultValue = CommandLine.Help.Visibility.ALWAYS)
+    private String version;
+
     @Parameters(paramLabel = "<path>", description = "Path to edit")
     private String path;
 
@@ -42,11 +48,23 @@ public class EditCommand implements Callable<Void> {
     public Void call() throws Exception {
         FileSystem restfs = parent.createFileSystem();
         Path restPath = restfs.getPath(path);
+        boolean isVersionedFile = (boolean) Files.getAttribute(restPath, "isVersionedFile");
         Path tempPath = Files.createTempFile("rest-file-server", "edit");
-        Files.copy(restPath, tempPath, StandardCopyOption.REPLACE_EXISTING);
+        OpenOption[] options = isVersionedFile ? new OpenOption[]{VersionOpenOption.of(version)} : new OpenOption[0];
+        try (InputStream in = Files.newInputStream(restPath, options)) {
+            Files.copy(in, tempPath, StandardCopyOption.REPLACE_EXISTING);        
+        }
         if (invokeEditor(tempPath)) {
-            Files.copy(tempPath, restPath, StandardCopyOption.REPLACE_EXISTING);
-            System.out.println("File was updated");
+            if (isVersionedFile) {
+                try (OutputStream out = Files.newOutputStream(restPath)) {
+                    Files.copy(tempPath, out);
+                }
+                int latestVersion = (int) Files.getAttribute(restPath, "latestVersion");
+                System.out.printf("New version (%d) was created\n", latestVersion);                
+            } else {
+                Files.copy(tempPath, restPath, StandardCopyOption.REPLACE_EXISTING);
+                System.out.println("File was updated");
+            }
         }
         return null;
     }

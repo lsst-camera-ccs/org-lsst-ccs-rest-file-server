@@ -1,13 +1,20 @@
 package org.lsst.ccs.rest.file.server.cli;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
+import org.lsst.ccs.rest.file.server.cli.Utils.OpenOptionsBuilder;
+import org.lsst.ccs.rest.file.server.client.VersionOpenOption;
+import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParentCommand;
+import picocli.CommandLine.Spec;
 
 /**
  * Simple cat command for use with rest server
@@ -21,12 +28,38 @@ public class CatCommand implements Callable<Void> {
 
     @Parameters(paramLabel="<path>", description = "Path to file to cat")    
     private String path;
+    
+    @CommandLine.Option(names = {"-v", "--version"}, description = "If a versioned file, the version to cat. ", defaultValue = "default", 
+            showDefaultValue = CommandLine.Help.Visibility.ALWAYS)
+    private String version;
+
+    @CommandLine.Option(names = {"-c", "--create"}, description = "Create a new file by reading from stdin")
+    private boolean create;
+
+    @CommandLine.Option(names = {"-n", "--versioned"}, description = "Create a new versioned file by reading from stdin")
+    private boolean createVersioned;
+    
+    @Spec CommandSpec spec;
 
     @Override   
     public Void call() throws IOException {
         FileSystem restfs = parent.createFileSystem();
         Path restPath = restfs.getPath(path);
-        Files.copy(restPath, System.out);
+        if (!create && !createVersioned) {
+            OpenOptionsBuilder builder = Utils.openOptionsBuilder();
+            boolean isVersionedFile = (boolean) Files.getAttribute(restPath, "isVersionedFile");
+            if (isVersionedFile) builder.add(VersionOpenOption.of(version));
+            try (InputStream in = Files.newInputStream(restPath, builder.build())) {
+                // Java 9 in.transferTo(System.out);
+                Utils.copy(in, System.out);
+            }
+        } else {
+            OpenOptionsBuilder builder = Utils.openOptionsBuilder();
+            if (createVersioned) builder.add(VersionOpenOption.LATEST);
+            try (OutputStream out = Files.newOutputStream(restPath, builder.build())) {
+                Utils.copy(System.in, out);
+            }
+        }
         return null;
     }
 }

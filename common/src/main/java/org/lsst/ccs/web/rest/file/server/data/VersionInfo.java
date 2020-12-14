@@ -41,8 +41,6 @@ public class VersionInfo {
         this.versions = versions;
     }
     
-    
-    
     public static class Version extends RestFileInfo {
         private int version;
         
@@ -69,9 +67,11 @@ public class VersionInfo {
     }
     
 
-    Map<String, Object> getAsMap() {
+    public Map<String, Object> toMap() {
         Map<String, Object> result = new HashMap<>();
+        result.put("latestVersion", getLatest());
+        result.put("defaultVersion", getDefault());
         return result;
     }
-    
+        
 }

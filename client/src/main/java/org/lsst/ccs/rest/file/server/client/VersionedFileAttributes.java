@@ -13,4 +13,6 @@ public interface VersionedFileAttributes extends BasicFileAttributes {
     int getLatestVersion();
 
     int getDefaultVersion();
+    
+    BasicFileAttributes getAttributes(int version);
 }

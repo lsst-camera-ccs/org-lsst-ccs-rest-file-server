@@ -167,7 +167,7 @@ public class ClientTest {
         Path pathInRestServer = restfs.getPath("versioned.txt");
         assertFalse(Files.exists(pathInRestServer));
         final String content = "This is a test file";
-        try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer, VersionOpenOption.CREATE)) {
+        try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer, VersionOpenOption.LATEST)) {
             writer.append(content);
         }
         standardTest(pathInRestServer, content);
@@ -178,7 +178,7 @@ public class ClientTest {
         Path pathInRestServer = restfs.getPath("versioned.txt");
         assertFalse(Files.exists(pathInRestServer));
         final String content = "This is a test file";
-        try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer, VersionOpenOption.CREATE)) {
+        try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer, VersionOpenOption.LATEST)) {
             writer.append(content);
         }
         BasicFileAttributes basicAttributes = Files.readAttributes(pathInRestServer, BasicFileAttributes.class);
@@ -222,4 +222,17 @@ public class ClientTest {
 //        Path dir = fs.getPath("/home/tonyj/Data/");
 //        Files.newDirectoryStream(dir, "*.ser").forEach(System.out::println);
 //    }
+    
+    @Test
+    public void relativizeTest() throws IOException {
+        //FileSystem defaultFileSystem = FileSystems.getDefault();
+        FileSystem fs = restfs;
+
+        Path path1 = fs.getPath("a", "b", "c");
+        Path path2 = fs.getPath("a");
+        Path path3 = path2.relativize(path1);
+        assertEquals("b/c", path3.toString());
+        Path path4 = path1.relativize(path2);
+        assertEquals("../..", path4.toString());        
+    }
 }

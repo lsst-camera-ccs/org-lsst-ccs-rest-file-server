@@ -46,6 +46,10 @@
   "name":"java.awt.image.RenderedImage"
 },
 {
+  "name":"java.io.IOException",
+  "methods":[{"name":"<init>","parameterTypes":["java.lang.String"] }]
+},
+{
   "name":"java.io.Serializable",
   "allDeclaredMethods":true
 },
@@ -79,6 +83,10 @@
 {
   "name":"java.lang.System",
   "methods":[{"name":"console","parameterTypes":[] }]
+},
+{
+  "name":"java.nio.file.FileAlreadyExistsException",
+  "methods":[{"name":"<init>","parameterTypes":["java.lang.String"] }]
 },
 {
   "name":"java.nio.file.FileSystemException",
@@ -483,6 +491,12 @@
 },
 {
   "name":"org.lsst.ccs.rest.file.server.cli.ListCommand",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.lsst.ccs.rest.file.server.cli.MakeDirectoryCommand",
   "allDeclaredFields":true,
   "allDeclaredMethods":true,
   "methods":[{"name":"<init>","parameterTypes":[] }]

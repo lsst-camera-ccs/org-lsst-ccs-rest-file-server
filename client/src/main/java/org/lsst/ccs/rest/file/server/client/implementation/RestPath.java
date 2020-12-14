@@ -43,7 +43,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
 import org.lsst.ccs.rest.file.server.client.VersionOpenOption;
-import org.lsst.ccs.rest.file.server.client.VersionOption;
+import org.lsst.ccs.rest.file.server.client.VersionOpenOption;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributeView;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributes;
 import org.lsst.ccs.web.rest.file.server.data.IOExceptionResponse;
@@ -139,7 +139,24 @@ class RestPath extends AbstractPath {
 
     @Override
     public Path relativize(Path other) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+       if (other.getFileSystem() != this.fileSystem) {
+           throw new IllegalArgumentException("Incompatible file system");
+       }
+       RestPath otherAbsolute = (RestPath) other.toAbsolutePath();
+       RestPath thisAbsolute = (RestPath) this.toAbsolutePath();
+       int commonRootDepth = 0;
+       for (int i=0; i<Math.min(thisAbsolute.path.size(), otherAbsolute.path.size()); i++) {
+           if (!thisAbsolute.path.get(i).equals(otherAbsolute.path.get(i))) {
+              break;
+           }
+           commonRootDepth++;
+       }
+       List<String> relativePath = new LinkedList<>();
+       for (int i=commonRootDepth; i<thisAbsolute.path.size(); i++) {
+           relativePath.add("..");
+       }
+       relativePath.addAll(otherAbsolute.path.subList(commonRootDepth, otherAbsolute.path.size()));
+       return new RestPath(fileSystem, relativePath, true, false);
     }
 
     @Override
@@ -179,9 +196,9 @@ class RestPath extends AbstractPath {
     InputStream newInputStream(OpenOption[] options) throws IOException {
         // TODO: Remove explicit use of HttpConnection
         if (isVersionedFile()) {
-            VersionOption vo = getOptions(options, VersionOption.class);
+            VersionOpenOption vo = getOptions(options, VersionOpenOption.class);
             if (vo == null) {
-                vo = VersionOption.DEFAULT;
+                vo = VersionOpenOption.DEFAULT;
             }
             URI uri = fileSystem.getRestURI("rest/version/download/", path);
             uri = UriBuilder.fromUri(uri).queryParam("version", vo.value()).build();
@@ -378,7 +395,12 @@ class RestPath extends AbstractPath {
     }
 
     Map<String, Object> readAttributes(String attributes) throws IOException {
-        return getRestFileInfo().toMap();
+        final RestFileInfo restFileInfo = getRestFileInfo();
+        final Map<String, Object> result = restFileInfo.toMap();
+        if (restFileInfo.isVersionedFile()) {
+            result.putAll(getVersionedRestFileInfo().toMap());
+        }
+        return result;
     }
 
     private synchronized boolean isVersionedFile() throws IOException {

@@ -10,7 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Collections;
 import java.util.Properties;
-import org.lsst.ccs.rest.file.server.client.VersionOption;
+import org.lsst.ccs.rest.file.server.client.VersionOpenOption;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributeView;
 
 /**
@@ -28,7 +28,7 @@ public class Main3 {
         Properties props = new Properties();
         props.put("$$VERSION", String.valueOf(latest));
 
-        try (InputStream inputStream = Files.newInputStream(pathInRestServer, StandardOpenOption.READ, VersionOption.of(latest))) {
+        try (InputStream inputStream = Files.newInputStream(pathInRestServer, StandardOpenOption.READ, VersionOpenOption.of(latest))) {
             props.load(inputStream);
         }
         props.list(System.out);

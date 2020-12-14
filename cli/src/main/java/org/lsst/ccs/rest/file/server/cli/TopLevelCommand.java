@@ -21,6 +21,7 @@ import picocli.CommandLine.Option;
     EditCommand.class,
     ListCommand.class, 
     MoveCommand.class,
+    MakeDirectoryCommand.class,
     HelpCommand.class})
 public class TopLevelCommand {
 
