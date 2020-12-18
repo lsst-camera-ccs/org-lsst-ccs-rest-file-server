@@ -3,9 +3,9 @@
     <rule match-type="regex">
         <condition type="request-uri" operator="notequal">^/\w*/rest/.*$</condition>
         <condition type="request-uri" operator="notequal">^/\w*/ace/.*$</condition>
-        <condition type="request-uri" operator="notequal">^/\w*/index.html$</condition>
+        <condition type="request-uri" operator="notequal">^/\w*/index.jsp$</condition>
         <condition type="request-uri" operator="notequal">^/.*\.js$</condition>
         <from>^.*$</from>
-        <to>index.html</to>
+        <to>/index.jsp</to>
     </rule>
 </urlrewrite>

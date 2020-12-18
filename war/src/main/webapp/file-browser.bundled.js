@@ -174,11 +174,10 @@ const Z=(t,i)=>{const s=t.startNode.parentNode,e=void 0===i?t.endNode:i.startNod
       :host {
         display: block;
       }
-    `}static get properties(){return{restURL:{type:String,notify:!0},data:{type:Object,notify:!0},path:{type:String,notify:!0}}}constructor(){super(),this.restURL="rest/",this.data={},this.path="."}render(){return B`
-      <h1>File Browser</h1>
+    `}static get properties(){return{restURL:{type:String,notify:!0},data:{type:Object,notify:!0},path:{type:String,notify:!0},filePrefix:{type:String,notify:!0},context:{type:String,notify:!0}}}constructor(){super(),this.restURL="rest/",this.filePrefix="/dev",this.context="",this.data={},this.path="."}render(){return B`
       Path: ${this.path}
 
-      ${null!=this.data.children?this.data.isVersionedFile?this._renderVersionedFile(this.data):this._renderFolder(this.data):this._renderFile(this.data)}
+      ${this.data.versionedFile?this._renderVersionedFile(this.data):null!=this.data.children?this._renderFolder(this.data):this._renderFile(this.data)}
       `}_renderFolder(t){return B`
       <ul>
         ${rt(this.data.children,t=>t.name,(t,i)=>B`
@@ -196,7 +195,7 @@ const Z=(t,i)=>{const s=t.startNode.parentNode,e=void 0===i?t.endNode:i.startNod
       <ace-editor readonly name=${i} fileURL=${t}></ace-editor>
     `}_renderImage(t){return B`
       <img src=${t}>
-    `}firstUpdated(t){this.path=window.location.pathname.replace("/RestFileServer","."),"./"==this.path&&(this.path="."),this._updateData(),window.onpopstate=t=>{console.log(t.state),this._goto(null==t.state?".":t.state)}}_updateData(){fetch(this.restURL+"list/"+this.path).then(t=>t.json()).then(t=>this.data=t)}_gotoFile(t){let i=this.path+"/"+t.path[0].textContent;this._goto(i),window.history.pushState(i,"Content","/RestFileServer"+i.substring(1))}_goto(t){this.data={},this.path=t,this._updateData()}}class at extends Y{static get styles(){return Q`
+    `}firstUpdated(t){console.log(this.context),ace.config.set("basePath",this.context+"/ace"),console.log(window.location.pathname),this.path=window.location.pathname.replace(this.filePrefix,"."),console.log(this.path),"./"==this.path&&(this.path="."),console.log(this.path),this._updateData(),window.onpopstate=t=>{console.log(t.state),this._goto(null==t.state?".":t.state)}}_updateData(){fetch(this.restURL+"list/"+this.path).then(t=>t.json()).then(t=>this.data=t)}_gotoFile(t){let i=this.path+"/"+t.path[0].textContent;this._goto(i),window.history.pushState(i,"Content",this.filePrefix+i.substring(1))}_goto(t){this.data={},this.path=t,this._updateData()}}class at extends Y{static get styles(){return Q`
         :host {
           display: block;
           width: 100%;
@@ -211,7 +210,7 @@ const Z=(t,i)=>{const s=t.startNode.parentNode,e=void 0===i?t.endNode:i.startNod
         }
     `}static get properties(){return{fileURL:{type:String,notify:!0},readonly:{type:Boolean,notify:!0},name:{type:String,notify:!0}}}constructor(){super(),this.readonly=!1}render(){return B`
       <div id="editor"></div>
-    `}static get importMeta(){return import.meta}firstUpdated(t){let i=this.shadowRoot.getElementById("editor");ace.config.set("basePath","/RestFileServer/ace"),this.editor=ace.edit(i,{readOnly:this.readonly}),this.editor.setValue("Loading...");let s=ace.require("ace/ext/modelist").getModeForPath(this.name).mode;console.log(s),this.editor.session.setMode(s),this.editor.renderer.attachToShadowRoot(),fetch(this.fileURL).then(t=>t.text()).then(t=>this.editor.setValue(t,-1))}updated(t){t.get("fileURL")?(this.editor.setValue("Loading..."),fetch(this.fileURL).then(t=>t.text()).then(t=>this.editor.setValue(t,-1))):t.get("readonly")&&this.editor.setOption("readOnly",this.readonly)}postTo(t){let i=this.editor.getValue();return fetch(t,{method:"POST",body:i,headers:{"Content-type":"application/octet-stream"}}).then(t=>t.json())}}class ct extends Y{static get styles(){return Q`
+    `}static get importMeta(){return import.meta}firstUpdated(t){let i=this.shadowRoot.getElementById("editor");this.editor=ace.edit(i,{readOnly:this.readonly}),this.editor.setValue("Loading...");let s=ace.require("ace/ext/modelist").getModeForPath(this.name).mode;console.log(s),this.editor.session.setMode(s),this.editor.renderer.attachToShadowRoot(),fetch(this.fileURL).then(t=>t.text()).then(t=>this.editor.setValue(t,-1))}updated(t){t.get("fileURL")?(this.editor.setValue("Loading..."),fetch(this.fileURL).then(t=>t.text()).then(t=>this.editor.setValue(t,-1))):t.get("readonly")&&this.editor.setOption("readOnly",this.readonly)}postTo(t){let i=this.editor.getValue();return fetch(t,{method:"POST",body:i,headers:{"Content-type":"application/octet-stream"}}).then(t=>t.json())}}class ct extends Y{static get styles(){return Q`
         :host {
           display: block;
         }
