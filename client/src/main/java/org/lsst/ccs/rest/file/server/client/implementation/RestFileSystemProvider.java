@@ -30,6 +30,7 @@ import org.lsst.ccs.rest.file.server.client.VersionedFileAttributeView;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributes;
 
 /**
+ * Implementation of FileSystemProvider for a CCS rest file ser
  *
  * @author tonyj
  */
@@ -74,7 +75,7 @@ public class RestFileSystemProvider extends FileSystemProvider {
             URI existingURI = entry.getKey();
             if (uri.toString().startsWith(existingURI.toString())) {
                 URI relativeURI = existingURI.relativize(uri);
-                return new RestPath(entry.getValue(), relativeURI.toString(), false);
+                return entry.getValue().getPath(relativeURI.toString());
             }
         }
         List<String> path = Arrays.asList(uri.getPath().substring(1).split("/"));
@@ -97,27 +98,32 @@ public class RestFileSystemProvider extends FileSystemProvider {
 
     @Override
     public InputStream newInputStream(Path path, OpenOption... options) throws IOException {
-        return toRestPath(path).newInputStream(options);
+        final RestPath restPath = toRestPath(path);
+        return restPath.getClient().newInputStream(restPath, options);
     }
 
     @Override
     public OutputStream newOutputStream(Path path, OpenOption... options) throws IOException {
-        return toRestPath(path).newOutputStream(options);
+        final RestPath restPath = toRestPath(path);
+        return restPath.getClient().newOutputStream(restPath, options);
     }
 
     @Override
     public DirectoryStream<Path> newDirectoryStream(Path dir, DirectoryStream.Filter<? super Path> filter) throws IOException {
-        return toRestPath(dir).newDirectoryStream(filter);
+        final RestPath restPath = toRestPath(dir);
+        return restPath.getClient().newDirectoryStream(restPath, filter);
     }
 
     @Override
     public void createDirectory(Path dir, FileAttribute<?>... attrs) throws IOException {
-        toRestPath(dir).createDirectory(attrs);
+        final RestPath restPath = toRestPath(dir);
+        restPath.getClient().createDirectory(restPath, attrs);
     }
 
     @Override
     public void delete(Path path) throws IOException {
-        toRestPath(path).delete();
+        final RestPath restPath = toRestPath(path);
+        restPath.getClient().delete(restPath);
     }
 
     @Override
@@ -127,7 +133,8 @@ public class RestFileSystemProvider extends FileSystemProvider {
 
     @Override
     public void move(Path source, Path target, CopyOption... options) throws IOException {
-        toRestPath(source).move(toRestPath(target), options);
+        final RestPath sourcePath = toRestPath(source);
+        sourcePath.getClient().move(sourcePath, toRestPath(target), options);
     }
 
     @Override
@@ -138,7 +145,7 @@ public class RestFileSystemProvider extends FileSystemProvider {
         if (path.getFileSystem() != path2.getFileSystem()) {
             return false;
         }
-        return toRestPath(path).isSameFile(toRestPath(path2));
+        return path.toAbsolutePath().equals(path2.toAbsolutePath());
     }
 
     @Override
@@ -153,25 +160,28 @@ public class RestFileSystemProvider extends FileSystemProvider {
 
     @Override
     public void checkAccess(Path path, AccessMode... modes) throws IOException {
-        toRestPath(path).checkAccess(modes);
+        final RestPath restPath = toRestPath(path);
+        restPath.getClient().checkAccess(restPath, modes);
     }
 
     @Override
     public <V extends FileAttributeView> V getFileAttributeView(Path path, Class<V> type, LinkOption... options) {
+        final RestPath restPath = toRestPath(path);
         if (type == BasicFileAttributeView.class) {
-            return type.cast(toRestPath(path).getFileAttributeView());
+            return type.cast(restPath.getClient().getFileAttributeView(restPath, options));
         } else if (type == VersionedFileAttributeView.class) {
-            return type.cast(toRestPath(path).getVersionedAttributeView());
+            return type.cast(restPath.getClient().getVersionedAttributeView(restPath, options));
         }
         return null;
     }
 
     @Override
     public <A extends BasicFileAttributes> A readAttributes(Path path, Class<A> type, LinkOption... options) throws IOException {
+        final RestPath restPath = toRestPath(path);
         if (type == BasicFileAttributes.class) {
-            return type.cast(toRestPath(path).getAttributes());
+            return type.cast(restPath.getClient().getAttributes(restPath, options));
         } else if (type == VersionedFileAttributes.class) {
-            return type.cast(toRestPath(path).getVersionedAttributes());
+            return type.cast(restPath.getClient().getVersionedAttributes(restPath, options));
         }
         return null;
     }
@@ -183,7 +193,8 @@ public class RestFileSystemProvider extends FileSystemProvider {
 
     @Override
     public Map<String, Object> readAttributes(Path path, String attributes, LinkOption... options) throws IOException {
-        return toRestPath(path).readAttributes(attributes);
+        final RestPath restPath = toRestPath(path);
+        return restPath.getClient().readAttributes(restPath, attributes, options);
     }
 
     private RestPath toRestPath(Path path) {
