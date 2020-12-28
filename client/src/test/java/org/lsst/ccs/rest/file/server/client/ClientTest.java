@@ -111,6 +111,8 @@ public class ClientTest {
         assertTrue(Files.isDirectory(parent));
         List<Path> files = Files.list(parent).collect(Collectors.toList());
         assertEquals(1, files.size());
+        System.out.println(path);
+        System.out.println(files.get(0));
         assertTrue(Files.isSameFile(path, files.get(0)));
         List<String> lines = Files.lines(path).collect(Collectors.toList());
         assertEquals(1, lines.size());

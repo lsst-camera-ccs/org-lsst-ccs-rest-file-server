@@ -10,6 +10,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
@@ -23,8 +24,11 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.EntityTag;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.StreamingOutput;
 import org.jvnet.hk2.annotations.Optional;
 import org.lsst.ccs.web.rest.file.server.data.RestFileInfo;
@@ -57,15 +61,15 @@ public class FileServer {
 
     @GET
     @Path("list")
-    public Object list() throws IOException {
-        return list("");
+    public Response list(@Context Request request) throws IOException {
+        return list("", request);
     }
 
     @GET
     @Path("list/{filePath: .*}")
-    public RestFileInfo list(@PathParam("filePath") String filePath) throws IOException {
+    public Response list(@PathParam("filePath") String filePath, @Context Request request) throws IOException {
         java.nio.file.Path file = baseDir.resolve(filePath);
-        RestFileInfo fileProperties = info(filePath);
+        RestFileInfo fileProperties = getFileAtrributes(file, filePath);
         boolean isDirectory = Files.isDirectory(file);
         if (isDirectory) {
             List<java.nio.file.Path> listFiles = Files.list(file).collect(Collectors.toList());
@@ -78,13 +82,33 @@ public class FileServer {
             children.sort((RestFileInfo o1, RestFileInfo o2) -> o1.getName().compareTo(o2.getName()));
             fileProperties.setChildren(children);
         }
-        return fileProperties;
+        EntityTag eTag = new EntityTag(ETagHelper.computeEtag(fileProperties));
+        ResponseBuilder builder = request.evaluatePreconditions(eTag);
+        if (builder != null) {
+            return builder.tag(eTag).build();
+        }
+        return Response.ok(fileProperties)
+                .tag(eTag)
+                .build();
     }
 
     @GET
     @Path("info/{filePath: .*}")
-    public RestFileInfo info(@PathParam("filePath") String filePath) throws IOException {
+    public Response info(@PathParam("filePath") String filePath, @Context Request request) throws IOException {
         java.nio.file.Path file = baseDir.resolve(filePath);
+        Date lastModified = new Date(Files.getLastModifiedTime(file).toMillis());
+        ResponseBuilder builder = request.evaluatePreconditions(lastModified);
+        if (builder != null) {
+            return builder.lastModified(lastModified).build();
+        }
+        final RestFileInfo fileAtrributes = getFileAtrributes(file, filePath);
+        EntityTag eTag = new EntityTag(ETagHelper.computeEtag(fileAtrributes));
+        return Response.ok(fileAtrributes)
+                .tag(eTag)
+                .build();
+    }
+
+    private RestFileInfo getFileAtrributes(java.nio.file.Path file, String filePath) throws IOException, NoSuchFileException {
         BasicFileAttributes fileAttributes = Files.getFileAttributeView(file, BasicFileAttributeView.class).readAttributes();
         if (fileAttributes == null) {
             throw new NoSuchFileException(filePath);
@@ -95,15 +119,21 @@ public class FileServer {
     @GET
     @Path("download/{filePath: .*}")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
-    public Response file(@PathParam("filePath") String filePath) {
+    public Response file(@PathParam("filePath") String filePath, @Context Request request) throws IOException {
         java.nio.file.Path file = baseDir.resolve(filePath);
-        if (file.toFile().canRead()) {
+        if (Files.isReadable(file)) {
+            Date lastModified = new Date(Files.getLastModifiedTime(file).toMillis());
+            ResponseBuilder builder = request.evaluatePreconditions(lastModified);
+            if (builder != null) {
+                return builder.lastModified(lastModified).build();
+            }
             StreamingOutput fileStream = (java.io.OutputStream output) -> {
                 byte[] data = Files.readAllBytes(file);
                 output.write(data);
                 output.flush();
             };
             return Response.ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
+                    .lastModified(lastModified)
                     .header("content-disposition", "attachment; filename = " + file.getFileName())
                     .build();
         } else {
@@ -111,7 +141,7 @@ public class FileServer {
         }
     }
 
-    @GET
+    @POST
     @Path("createDirectory/{filePath: .*}")
     public Response createDirectory(@PathParam("filePath") String filePath) throws IOException {
         java.nio.file.Path file = baseDir.resolve(filePath);
@@ -119,7 +149,7 @@ public class FileServer {
         return Response.ok().build();
     }
 
-    @GET
+    @POST
     @Path("createFile/{filePath: .*}")
     public Response createFile(@PathParam("filePath") String filePath) throws IOException {
         java.nio.file.Path file = baseDir.resolve(filePath);
@@ -127,7 +157,7 @@ public class FileServer {
         return Response.ok().build();
     }
 
-    @GET
+    @POST
     @Path("move/{filePath: .*}")
     public Response move(@PathParam("filePath") String source, @QueryParam("target") String target) throws IOException {
         java.nio.file.Path sourcePath = baseDir.resolve(source);

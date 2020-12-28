@@ -1,6 +1,7 @@
 package org.lsst.ccs.web.rest.file.server.data;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
@@ -11,7 +12,7 @@ import java.util.Map;
  * Information returned by the rest-file-server for a versioned file
  * @author tonyj
  */
-public class VersionInfo {
+public class VersionInfo implements Serializable {
 
     private int defaultVersion;
     private int latestVersion;

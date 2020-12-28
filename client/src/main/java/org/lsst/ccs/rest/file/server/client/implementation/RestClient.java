@@ -130,7 +130,7 @@ public class RestClient implements Closeable {
     }
 
     void createDirectory(RestPath path, FileAttribute<?>[] attrs) throws IOException {
-        Response response = getRestTarget("rest/createDirectory/", path).request(MediaType.APPLICATION_JSON).get();
+        Response response = getRestTarget("rest/createDirectory/", path).request(MediaType.APPLICATION_JSON).post(null);
         checkResponse(response);
     }
 
@@ -142,7 +142,7 @@ public class RestClient implements Closeable {
 
     void move(RestPath source, RestPath target, CopyOption[] options) throws IOException {
         URI uri = UriBuilder.fromUri(getRestURI("rest/move/", source)).queryParam("target", target.getRestPath()).build();
-        Response response = client.target(uri).request(MediaType.APPLICATION_JSON).get();
+        Response response = client.target(uri).request(MediaType.APPLICATION_JSON).post(null);
         checkResponse(response);
     }
 

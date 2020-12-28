@@ -1,6 +1,7 @@
 package org.lsst.ccs.web.rest.file.server.data;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -11,15 +12,17 @@ import java.util.Map;
 
 /**
  * Information returned by the rest file server for a directory or file
+ *
  * @author tonyj
  */
-public class RestFileInfo {
+public class RestFileInfo implements Serializable {
+
     private long lastModified;
     private long creationTime;
     private long lastAccessTime;
     private long size;
     private String mimeType;
-    private String name;       
+    private String name;
     private String fileKey;
     private boolean isDirectory;
     private boolean isOther;
@@ -29,14 +32,14 @@ public class RestFileInfo {
     private List<RestFileInfo> children;
 
     public RestFileInfo() {
-        
+
     }
-    
+
     public RestFileInfo(Path file, BasicFileAttributes fileAttributes, boolean isVersionedFile) throws IOException {
         this.name = file.getFileName().toString();
         this.size = fileAttributes.size();
         this.lastModified = fileAttributes.lastModifiedTime().toMillis();
-        this.fileKey =  fileAttributes.fileKey().toString();
+        this.fileKey = fileAttributes.fileKey().toString();
         this.isDirectory = fileAttributes.isDirectory();
         this.isOther = fileAttributes.isOther();
         this.isRegularFile = fileAttributes.isRegularFile();
@@ -46,7 +49,6 @@ public class RestFileInfo {
         this.mimeType = Files.probeContentType(file);
         this.isVersionedFile = isVersionedFile;
     }
-
 
     public long getLastModified() {
         return lastModified;

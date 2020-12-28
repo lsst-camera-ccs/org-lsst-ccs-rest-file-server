@@ -44,6 +44,9 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
         this.uri = uri;
         this.env = env;
         Client client = ClientBuilder.newClient();
+        Cache cache = new Cache();
+        client.register(new CacheRequestFilter(cache));
+        client.register(new CacheResponseFilter(cache));
         restClient = new RestClient(client, computeRestURI(client));
     }
 
