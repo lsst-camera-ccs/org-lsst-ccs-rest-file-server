@@ -48,55 +48,56 @@ public class ListCommand implements Callable<Void> {
 
     @Override
     public Void call() throws IOException {
-        FileSystem restfs = parent.createFileSystem();
-        Path restPath = restfs.getPath(path);
-        boolean isDirectory = Files.isDirectory(restPath);
-        boolean isVersionedFile = (boolean) Files.getAttribute(restPath, "isVersionedFile");
-        FileSizeFormatter fsf = new FileSizeFormatter(humanReadable, si);
-        FileDateFormatter fdf = new FileDateFormatter(fullTime);
-        Ansi ansi = colorize ? Ansi.AUTO : Ansi.OFF;
-        if (isDirectory) {
-            try (Stream<Path> directoryStream = Files.list(restPath)) {
-                directoryStream.forEach(p -> {
-                    try {
-                        BasicFileAttributes bfa = Files.readAttributes(p, BasicFileAttributes.class);
-                        String color = bfa.isDirectory() ? "blue" : bfa.isOther() ? "green" : "white";
-                        if (showLong || si) {
-                            String line = String.format("@|%s %10s %s %s|@", color, fsf.format(bfa.size()), fdf.format(bfa.lastModifiedTime()), p.getFileName());
-                            System.out.println(ansi.string(line));
-                        } else {
-                            String line = String.format("@|%s %s|@", color, p.getFileName());
-                            System.out.println(ansi.string(line));
+        try (FileSystem restfs = parent.createFileSystem()) {
+            Path restPath = restfs.getPath(path);
+            boolean isDirectory = Files.isDirectory(restPath);
+            boolean isVersionedFile = (boolean) Files.getAttribute(restPath, "isVersionedFile");
+            FileSizeFormatter fsf = new FileSizeFormatter(humanReadable, si);
+            FileDateFormatter fdf = new FileDateFormatter(fullTime);
+            Ansi ansi = colorize ? Ansi.AUTO : Ansi.OFF;
+            if (isDirectory) {
+                try (Stream<Path> directoryStream = Files.list(restPath)) {
+                    directoryStream.forEach(p -> {
+                        try {
+                            BasicFileAttributes bfa = Files.readAttributes(p, BasicFileAttributes.class);
+                            String color = bfa.isDirectory() ? "blue" : bfa.isOther() ? "green" : "white";
+                            if (showLong || si) {
+                                String line = String.format("@|%s %10s %s %s|@", color, fsf.format(bfa.size()), fdf.format(bfa.lastModifiedTime()), p.getFileName());
+                                System.out.println(ansi.string(line));
+                            } else {
+                                String line = String.format("@|%s %s|@", color, p.getFileName());
+                                System.out.println(ansi.string(line));
+                            }
+                        } catch (IOException x) {
+                            System.out.println("IOException: " + p.getFileName());
                         }
-                    } catch (IOException x) {
-                        System.out.println("IOException: " + p.getFileName());
+                    });
+                }
+            } else if (isVersionedFile) {
+                VersionedFileAttributes vfa = Files.readAttributes(restPath, VersionedFileAttributes.class);
+                for (int version : vfa.getVersions()) {
+                    BasicFileAttributes bfa = vfa.getAttributes(version);
+                    String color = version == vfa.getDefaultVersion() ? "blue" : version == vfa.getLatestVersion() ? "green" : "white";
+                    List<String> attributes = new ArrayList<>();
+                    if (version == vfa.getDefaultVersion()) {
+                        attributes.add("default");
                     }
-                });
+                    if (version == vfa.getLatestVersion()) {
+                        attributes.add("latest");
+                    }
+                    String info = String.join(",", attributes);
+                    if (showLong || si) {
+                        String line = String.format("@|%s %10s %s %3d %s|@", color, fsf.format(bfa.size()), fdf.format(bfa.lastModifiedTime()), version, info);
+                        System.out.println(ansi.string(line));
+                    } else {
+                        String line = String.format("@|%s %3d %s|@", color, version, info);
+                        System.out.println(ansi.string(line));
+                    }
+                }
+            } else {
+                throw new NotDirectoryException("Not a directory or versioned file: " + path);
             }
-        } else if (isVersionedFile) {
-            VersionedFileAttributes vfa = Files.readAttributes(restPath, VersionedFileAttributes.class);
-            for (int version : vfa.getVersions()) {
-                BasicFileAttributes bfa = vfa.getAttributes(version);
-                String color = version == vfa.getDefaultVersion() ? "blue" : version == vfa.getLatestVersion() ? "green" : "white";
-                List<String> attributes = new ArrayList<>();
-                if (version == vfa.getDefaultVersion()) {
-                    attributes.add("default");
-                }
-                if (version == vfa.getLatestVersion()) {
-                    attributes.add("latest");
-                }
-                String info = String.join(",", attributes);
-                if (showLong || si) {
-                    String line = String.format("@|%s %10s %s %3d %s|@", color, fsf.format(bfa.size()), fdf.format(bfa.lastModifiedTime()), version, info);
-                    System.out.println(ansi.string(line));
-                } else {
-                    String line = String.format("@|%s %3d %s|@", color, version, info);
-                    System.out.println(ansi.string(line));
-                }
-            }
-        } else {
-            throw new NotDirectoryException("Not a directory or versioned file: " + path);
+            return null;
         }
-        return null;
     }
 }

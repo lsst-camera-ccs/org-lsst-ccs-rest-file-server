@@ -10,7 +10,7 @@ import java.nio.file.attribute.FileStoreAttributeView;
  *
  * @author tonyj
  */
-public class RestFileStore extends FileStore {
+class RestFileStore extends FileStore {
 
     private final RestFileSystem fileSystem;
 

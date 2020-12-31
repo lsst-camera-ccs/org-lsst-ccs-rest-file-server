@@ -12,29 +12,31 @@ import picocli.CommandLine.ParentCommand;
 
 /**
  * Simple mkdir command for use with rest server
+ *
  * @author tonyj
  */
 @Command(name = "mkdir", description = "Create a new directory")
 public class MakeDirectoryCommand implements Callable<Void> {
-    
+
     @ParentCommand
     private TopLevelCommand parent;
 
-    @Parameters(paramLabel="<path>", description = "Path to directory to create")    
+    @Parameters(paramLabel = "<path>", description = "Path to directory to create")
     private String path;
-    
+
     @CommandLine.Option(names = {"-p", "--parents"}, description = "no error if existing, make parent directories as needed")
     private boolean createParents;
 
-    @Override   
+    @Override
     public Void call() throws IOException {
-        FileSystem restfs = parent.createFileSystem();
-        Path restPath = restfs.getPath(path);
-        if (createParents) {
-            Files.createDirectories(restPath); 
-        } else {
-            Files.createDirectory(restPath); 
+        try (FileSystem restfs = parent.createFileSystem()) {
+            Path restPath = restfs.getPath(path);
+            if (createParents) {
+                Files.createDirectories(restPath);
+            } else {
+                Files.createDirectory(restPath);
+            }
+            return null;
         }
-        return null;
     }
 }

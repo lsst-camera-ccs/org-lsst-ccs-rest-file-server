@@ -11,26 +11,28 @@ import picocli.CommandLine.ParentCommand;
 
 /**
  * Simple cat command for use with rest server
+ *
  * @author tonyj
  */
 @Command(name = "mv", description = "Move/rename a file or directory")
 public class MoveCommand implements Callable<Void> {
-    
+
     @ParentCommand
     private TopLevelCommand parent;
 
-    @Parameters(paramLabel="<from>", description = "Source")    
+    @Parameters(paramLabel = "<from>", description = "Source")
     private String from;
 
-    @Parameters(paramLabel="<to>", description = "Destination")    
+    @Parameters(paramLabel = "<to>", description = "Destination")
     private String to;
-    
-    @Override   
+
+    @Override
     public Void call() throws IOException {
-        FileSystem restfs = parent.createFileSystem();
-        Path fromPath = restfs.getPath(from);
-        Path toPath = restfs.getPath(to);
-        Files.move(fromPath, toPath);
-        return null;
+        try (FileSystem restfs = parent.createFileSystem()) {
+            Path fromPath = restfs.getPath(from);
+            Path toPath = restfs.getPath(to);
+            Files.move(fromPath, toPath);
+            return null;
+        }
     }
 }

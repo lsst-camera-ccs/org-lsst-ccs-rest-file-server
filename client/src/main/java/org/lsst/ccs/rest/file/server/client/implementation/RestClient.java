@@ -1,6 +1,7 @@
 package org.lsst.ccs.rest.file.server.client.implementation;
 
 import java.io.Closeable;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
@@ -28,8 +29,11 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
+import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.client.SyncInvoker;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -45,38 +49,43 @@ import org.lsst.ccs.web.rest.file.server.data.VersionInfo;
  *
  * @author tonyj
  */
-public class RestClient implements Closeable {
-    
+class RestClient implements Closeable {
+
     private final Client client;
     private final URI restURI;
 
     RestClient(Client client, URI restURI) {
         this.client = client;
-        this.restURI = restURI; 
+        this.restURI = restURI;
     }
-    
+
     private URI getRestURI(String restPath, RestPath path) throws IOException {
         return restURI.resolve(restPath).resolve(path.getRestPath());
     }
-    
+
     private WebTarget getRestTarget(String restPath, RestPath path) throws IOException {
         return client.target(getRestURI(restPath, path));
     }
 
     InputStream newInputStream(RestPath path, OpenOption[] options) throws IOException {
-        // TODO: Remove explicit use of HttpConnection
+        URI uri;
         if (path.isVersionedFile()) {
             VersionOpenOption vo = getOptions(options, VersionOpenOption.class);
             if (vo == null) {
                 vo = VersionOpenOption.DEFAULT;
             }
-            URI uri = getRestURI("rest/version/download/", path);
+            uri = getRestURI("rest/version/download/", path);
             uri = UriBuilder.fromUri(uri).queryParam("version", vo.value()).build();
-            return uri.toURL().openStream();
         } else {
-            URI uri = getRestURI("rest/download/", path);
-            return uri.toURL().openStream();
+            uri = getRestURI("rest/download/", path);
         }
+        WebTarget target = client.target(uri);
+        Response response = target.request(MediaType.APPLICATION_OCTET_STREAM).get();
+        if (response.getStatus() == 404) {
+            throw new FileNotFoundException(path.toString());
+        }
+        checkResponse(response);
+        return response.readEntity(InputStream.class);
     }
 
     OutputStream newOutputStream(RestPath path, OpenOption[] options) throws IOException {
@@ -96,10 +105,16 @@ public class RestClient implements Closeable {
                 } catch (InterruptedException x) {
                     throw new InterruptedIOException("Interrupt during file close");
                 } catch (ExecutionException x) {
-                    throw new IOException("Error during file close", x.getCause());
+                    final Throwable cause = x.getCause();
+                    if (cause instanceof ProcessingException) {
+                        throw convertProcessingException((ProcessingException) cause);
+                    } else if (cause instanceof IOException) {
+                        throw (IOException) cause;
+                    } else {
+                        throw new IOException("Error during file close", cause);
+                    }
                 }
             }
-
         };
         PipedInputStream in = new PipedInputStream(out);
         Future<Response> futureResponse = target.request(MediaType.APPLICATION_JSON).async().post(Entity.entity(in, MediaType.APPLICATION_OCTET_STREAM));
@@ -109,8 +124,7 @@ public class RestClient implements Closeable {
 
     // TODO: Implement filter
     DirectoryStream<Path> newDirectoryStream(RestPath path, DirectoryStream.Filter<? super Path> filter) throws IOException {
-        Response response = getRestTarget("rest/list/", path).request(MediaType.APPLICATION_JSON).get();
-        checkResponse(response);
+        Response response = getAndCheckResponse(getRestTarget("rest/list/", path).request(MediaType.APPLICATION_JSON));
         RestFileInfo dirList = response.readEntity(RestFileInfo.class);
         final List<RestFileInfo> children = dirList.getChildren();
         if (children == null) {
@@ -130,25 +144,21 @@ public class RestClient implements Closeable {
     }
 
     void createDirectory(RestPath path, FileAttribute<?>[] attrs) throws IOException {
-        Response response = getRestTarget("rest/createDirectory/", path).request(MediaType.APPLICATION_JSON).post(null);
-        checkResponse(response);
+        Response response = postAndCheckResponse(getRestTarget("rest/createDirectory/", path).request(MediaType.APPLICATION_JSON), null);
     }
 
     void delete(RestPath path) throws IOException {
         String restPath = path.isVersionedFile() ? "rest/version/deleteFile/" : "rest/deleteFile/";
-        Response response = getRestTarget(restPath, path).request(MediaType.APPLICATION_JSON).delete();
-        checkResponse(response);
+        Response response = deleteAndCheckResponse(getRestTarget(restPath, path).request(MediaType.APPLICATION_JSON));
     }
 
     void move(RestPath source, RestPath target, CopyOption[] options) throws IOException {
         URI uri = UriBuilder.fromUri(getRestURI("rest/move/", source)).queryParam("target", target.getRestPath()).build();
-        Response response = client.target(uri).request(MediaType.APPLICATION_JSON).post(null);
-        checkResponse(response);
+        Response response = postAndCheckResponse(client.target(uri).request(MediaType.APPLICATION_JSON), null);
     }
 
     void checkAccess(RestPath path, AccessMode... modes) throws IOException {
-        Response response = getRestTarget("rest/list/", path).request(MediaType.APPLICATION_JSON).get();
-        checkResponse(response);
+        Response response = getAndCheckResponse(getRestTarget("rest/list/", path).request(MediaType.APPLICATION_JSON));
         response.readEntity(RestFileInfo.class);
     }
 
@@ -168,8 +178,7 @@ public class RestClient implements Closeable {
         if (!path.isVersionedFile()) {
             throw new IOException("Cannot read versioned attributes for non-versioned file");
         }
-        Response response = getRestTarget("rest/version/info/", path).request(MediaType.APPLICATION_JSON).get();
-        checkResponse(response);
+        Response response = getAndCheckResponse(getRestTarget("rest/version/info/", path).request(MediaType.APPLICATION_JSON));
         VersionInfo info = response.readEntity(VersionInfo.class);
         return new RestVersionedFileAttributes(info);
     }
@@ -198,8 +207,7 @@ public class RestClient implements Closeable {
 
             @Override
             public void setDefaultVersion(int version) throws IOException {
-                Response response = getRestTarget("rest/version/set/", path).request(MediaType.APPLICATION_JSON).put(Entity.entity(version, MediaType.APPLICATION_JSON));
-                checkResponse(response);
+                Response response = putAndCheckResponse(getRestTarget("rest/version/set/", path).request(MediaType.APPLICATION_JSON), Entity.entity(version, MediaType.APPLICATION_JSON));
             }
 
             @Override
@@ -225,17 +233,63 @@ public class RestClient implements Closeable {
     }
 
     private VersionInfo getVersionedRestFileInfo(RestPath path) throws IOException {
-        Response response = getRestTarget("rest/version/info/", path).request(MediaType.APPLICATION_JSON).get();
-        checkResponse(response);
+        Response response = getAndCheckResponse(getRestTarget("rest/version/info/", path).request(MediaType.APPLICATION_JSON));
         VersionInfo info = response.readEntity(VersionInfo.class);
         return info;
     }
 
     RestFileInfo getRestFileInfo(RestPath path) throws IOException {
-        Response response = getRestTarget("rest/info/", path).request(MediaType.APPLICATION_JSON).get();
-        checkResponse(response);
+        Response response = getAndCheckResponse(getRestTarget("rest/info/", path).request(MediaType.APPLICATION_JSON));
         RestFileInfo info = response.readEntity(RestFileInfo.class);
         return info;
+    }
+
+    private Response getAndCheckResponse(SyncInvoker invoker) throws IOException {
+        try {
+            Response response = invoker.get();
+            checkResponse(response);
+            return response;
+        } catch (ProcessingException x) {
+            throw convertProcessingException(x);
+        }
+    }
+
+    private Response putAndCheckResponse(Invocation.Builder request, Entity<?> entity) throws IOException {
+        try {
+            Response response = request.put(entity);
+            checkResponse(response);
+            return response;
+        } catch (ProcessingException x) {
+            throw convertProcessingException(x);
+        }
+    }
+    
+    private Response postAndCheckResponse(Invocation.Builder request, Entity<?> entity) throws IOException {
+        try {
+            Response response = request.post(entity);
+            checkResponse(response);
+            return response;
+        } catch (ProcessingException x) {
+            throw convertProcessingException(x);
+        }
+    }
+
+    private Response deleteAndCheckResponse(Invocation.Builder request) throws IOException {
+        try {
+            Response response = request.delete();
+            checkResponse(response);
+            return response;
+        } catch (ProcessingException x) {
+            throw convertProcessingException(x);
+        }
+    }
+
+    static IOException convertProcessingException(ProcessingException x) {
+        if (x.getCause() instanceof IOException) {
+            return (IOException) x.getCause();
+        } else {
+            return new IOException("Error talking to rest server", x);
+        }
     }
 
     private void checkResponse(Response response) throws IOException {

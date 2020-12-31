@@ -1,6 +1,12 @@
 [
 {
+  "name":"boolean[]"
+},
+{
   "name":"byte[]"
+},
+{
+  "name":"char[]"
 },
 {
   "name":"com.fasterxml.jackson.databind.ext.Java7HandlersImpl",
@@ -43,7 +49,59 @@
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
+  "name":"com.sun.management.GarbageCollectorMXBean",
+  "allPublicMethods":true
+},
+{
+  "name":"com.sun.management.GcInfo",
+  "allPublicMethods":true
+},
+{
+  "name":"com.sun.management.HotSpotDiagnosticMXBean",
+  "allPublicMethods":true
+},
+{
+  "name":"com.sun.management.ThreadMXBean",
+  "allPublicMethods":true
+},
+{
+  "name":"com.sun.management.UnixOperatingSystemMXBean",
+  "allPublicMethods":true
+},
+{
+  "name":"com.sun.management.VMOption",
+  "allPublicMethods":true
+},
+{
+  "name":"com.sun.management.internal.GarbageCollectorExtImpl",
+  "allPublicConstructors":true
+},
+{
+  "name":"com.sun.management.internal.HotSpotDiagnostic",
+  "allPublicConstructors":true
+},
+{
+  "name":"com.sun.management.internal.HotSpotThreadImpl",
+  "allPublicConstructors":true
+},
+{
+  "name":"com.sun.management.internal.OperatingSystemImpl",
+  "allPublicConstructors":true
+},
+{
+  "name":"double[]"
+},
+{
+  "name":"float[]"
+},
+{
+  "name":"int[]"
+},
+{
   "name":"java.awt.image.RenderedImage"
+},
+{
+  "name":"java.beans.PropertyVetoException"
 },
 {
   "name":"java.io.IOException",
@@ -54,7 +112,35 @@
   "allDeclaredMethods":true
 },
 {
+  "name":"java.lang.Boolean",
+  "fields":[{"name":"TYPE"}]
+},
+{
+  "name":"java.lang.Byte",
+  "fields":[{"name":"TYPE"}]
+},
+{
+  "name":"java.lang.Character",
+  "fields":[{"name":"TYPE"}]
+},
+{
   "name":"java.lang.Class[]"
+},
+{
+  "name":"java.lang.Double",
+  "fields":[{"name":"TYPE"}]
+},
+{
+  "name":"java.lang.Float",
+  "fields":[{"name":"TYPE"}]
+},
+{
+  "name":"java.lang.Integer",
+  "fields":[{"name":"TYPE"}]
+},
+{
+  "name":"java.lang.Long",
+  "fields":[{"name":"TYPE"}]
 },
 {
   "name":"java.lang.Number",
@@ -64,7 +150,8 @@
 {
   "name":"java.lang.Object",
   "allDeclaredFields":true,
-  "allDeclaredMethods":true
+  "allDeclaredMethods":true,
+  "allPublicMethods":true
 },
 {
   "name":"java.lang.ProcessBuilder",
@@ -75,6 +162,14 @@
   "fields":[{"name":"INHERIT"}]
 },
 {
+  "name":"java.lang.Short",
+  "fields":[{"name":"TYPE"}]
+},
+{
+  "name":"java.lang.StackTraceElement",
+  "allPublicMethods":true
+},
+{
   "name":"java.lang.String"
 },
 {
@@ -83,6 +178,71 @@
 {
   "name":"java.lang.System",
   "methods":[{"name":"console","parameterTypes":[] }]
+},
+{
+  "name":"java.lang.Void",
+  "fields":[{"name":"TYPE"}]
+},
+{
+  "name":"java.lang.management.BufferPoolMXBean",
+  "allPublicMethods":true
+},
+{
+  "name":"java.lang.management.ClassLoadingMXBean",
+  "allPublicMethods":true
+},
+{
+  "name":"java.lang.management.CompilationMXBean",
+  "allPublicMethods":true
+},
+{
+  "name":"java.lang.management.LockInfo",
+  "allPublicMethods":true
+},
+{
+  "name":"java.lang.management.ManagementPermission",
+  "methods":[{"name":"<init>","parameterTypes":["java.lang.String"] }]
+},
+{
+  "name":"java.lang.management.MemoryMXBean",
+  "allPublicMethods":true
+},
+{
+  "name":"java.lang.management.MemoryManagerMXBean",
+  "allPublicMethods":true
+},
+{
+  "name":"java.lang.management.MemoryPoolMXBean",
+  "allPublicMethods":true
+},
+{
+  "name":"java.lang.management.MemoryUsage",
+  "allPublicMethods":true
+},
+{
+  "name":"java.lang.management.MonitorInfo",
+  "allPublicMethods":true
+},
+{
+  "name":"java.lang.management.PlatformLoggingMXBean",
+  "allPublicMethods":true
+},
+{
+  "name":"java.lang.management.RuntimeMXBean",
+  "allPublicMethods":true
+},
+{
+  "name":"java.lang.management.ThreadInfo",
+  "allPublicMethods":true
+},
+{
+  "name":"java.math.BigDecimal"
+},
+{
+  "name":"java.math.BigInteger"
+},
+{
+  "name":"java.net.URI"
 },
 {
   "name":"java.nio.file.FileAlreadyExistsException",
@@ -208,12 +368,54 @@
   "name":"java.util.Date"
 },
 {
+  "name":"java.util.HashMap"
+},
+{
+  "name":"java.util.PropertyPermission",
+  "methods":[{"name":"<init>","parameterTypes":["java.lang.String","java.lang.String"] }]
+},
+{
+  "name":"java.util.logging.LogManager",
+  "methods":[{"name":"getLoggingMXBean","parameterTypes":[] }]
+},
+{
+  "name":"java.util.logging.LoggingMXBean",
+  "allPublicMethods":true
+},
+{
   "name":"javax.inject.Named",
   "allDeclaredMethods":true
 },
 {
   "name":"javax.inject.Singleton",
   "allDeclaredMethods":true
+},
+{
+  "name":"javax.management.MBeanOperationInfo",
+  "allPublicMethods":true
+},
+{
+  "name":"javax.management.MBeanServerBuilder",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"javax.management.MXBean",
+  "allPublicMethods":true
+},
+{
+  "name":"javax.management.ObjectName"
+},
+{
+  "name":"javax.management.openmbean.CompositeData"
+},
+{
+  "name":"javax.management.openmbean.CompositeData[]"
+},
+{
+  "name":"javax.management.openmbean.OpenMBeanOperationInfoSupport"
+},
+{
+  "name":"javax.management.openmbean.TabularData"
 },
 {
   "name":"javax.naming.InitialContext",
@@ -238,6 +440,86 @@
 },
 {
   "name":"javax.xml.transform.stream.StreamSource"
+},
+{
+  "name":"jdk.management.jfr.ConfigurationInfo",
+  "allPublicMethods":true
+},
+{
+  "name":"jdk.management.jfr.EventTypeInfo",
+  "allPublicMethods":true
+},
+{
+  "name":"jdk.management.jfr.FlightRecorderMXBean",
+  "allPublicMethods":true
+},
+{
+  "name":"jdk.management.jfr.FlightRecorderMXBeanImpl",
+  "allPublicConstructors":true
+},
+{
+  "name":"jdk.management.jfr.RecordingInfo",
+  "allPublicMethods":true
+},
+{
+  "name":"jdk.management.jfr.SettingDescriptorInfo",
+  "allPublicMethods":true
+},
+{
+  "name":"long[]"
+},
+{
+  "name":"org.apache.commons.jcs3.admin.CacheElementInfo",
+  "allPublicMethods":true
+},
+{
+  "name":"org.apache.commons.jcs3.admin.CacheRegionInfo",
+  "allPublicMethods":true
+},
+{
+  "name":"org.apache.commons.jcs3.admin.JCSAdminBean",
+  "allPublicConstructors":true
+},
+{
+  "name":"org.apache.commons.jcs3.admin.JCSJMXBean",
+  "allPublicMethods":true
+},
+{
+  "name":"org.apache.commons.jcs3.auxiliary.AbstractAuxiliaryCacheAttributes",
+  "allPublicMethods":true
+},
+{
+  "name":"org.apache.commons.jcs3.auxiliary.disk.AbstractDiskCacheAttributes",
+  "allPublicMethods":true
+},
+{
+  "name":"org.apache.commons.jcs3.auxiliary.disk.indexed.IndexedDiskCacheAttributes",
+  "allPublicMethods":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.apache.commons.jcs3.auxiliary.disk.indexed.IndexedDiskCacheFactory",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.apache.commons.jcs3.auxiliary.disk.indexed.IndexedDiskElementDescriptor"
+},
+{
+  "name":"org.apache.commons.jcs3.engine.CacheElement"
+},
+{
+  "name":"org.apache.commons.jcs3.engine.CompositeCacheAttributes",
+  "allPublicMethods":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.apache.commons.jcs3.engine.ElementAttributes",
+  "allPublicMethods":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.apache.commons.jcs3.engine.memory.lru.LRUMemoryCache",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
   "name":"org.glassfish.hk2.internal.PerThreadContext",
@@ -513,6 +795,9 @@
   "allDeclaredMethods":true
 },
 {
+  "name":"org.lsst.ccs.rest.file.server.client.implementation.Cache$CacheEntry"
+},
+{
   "name":"org.lsst.ccs.web.rest.file.server.data.IOExceptionResponse",
   "allDeclaredFields":true,
   "allDeclaredMethods":true,
@@ -541,6 +826,41 @@
   "allDeclaredFields":true,
   "allDeclaredMethods":true,
   "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"short[]"
+},
+{
+  "name":"sun.management.ClassLoadingImpl",
+  "allPublicConstructors":true
+},
+{
+  "name":"sun.management.CompilationImpl",
+  "allPublicConstructors":true
+},
+{
+  "name":"sun.management.ManagementFactoryHelper$1",
+  "allPublicConstructors":true
+},
+{
+  "name":"sun.management.ManagementFactoryHelper$PlatformLoggingImpl",
+  "allPublicConstructors":true
+},
+{
+  "name":"sun.management.MemoryImpl",
+  "allPublicConstructors":true
+},
+{
+  "name":"sun.management.MemoryManagerImpl",
+  "allPublicConstructors":true
+},
+{
+  "name":"sun.management.MemoryPoolImpl",
+  "allPublicConstructors":true
+},
+{
+  "name":"sun.management.RuntimeImpl",
+  "allPublicConstructors":true
 },
 {
   "name":"sun.security.pkcs.SignerInfo[]"

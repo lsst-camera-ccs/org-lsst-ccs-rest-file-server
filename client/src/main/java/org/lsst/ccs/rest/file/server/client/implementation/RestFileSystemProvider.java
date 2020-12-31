@@ -9,6 +9,8 @@ import java.nio.file.AccessMode;
 import java.nio.file.CopyOption;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileStore;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystemAlreadyExistsException;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.LinkOption;
 import java.nio.file.OpenOption;
@@ -45,7 +47,7 @@ public class RestFileSystemProvider extends FileSystemProvider {
     }
 
     @Override
-    public RestFileSystem newFileSystem(URI uri, Map<String, ?> env) throws IOException {
+    public FileSystem newFileSystem(URI uri, Map<String, ?> env) throws IOException {
         if (env == null) {
             env = NO_ENV;
         }
@@ -54,13 +56,14 @@ public class RestFileSystemProvider extends FileSystemProvider {
             if (result == null) {
                 result = new RestFileSystem(RestFileSystemProvider.this, uri, env);
                 cache.put(uri, result);
+                return result;
             }
-            return result;
+            throw new FileSystemAlreadyExistsException(uri.toString());
         }
     }
 
     @Override
-    public RestFileSystem getFileSystem(URI uri) {
+    public FileSystem getFileSystem(URI uri) {
         return cache.get(uri);
     }
 
@@ -82,7 +85,7 @@ public class RestFileSystemProvider extends FileSystemProvider {
         for (int i = 0; i < path.size(); i++) {
             URI trialURI = UriBuilder.fromUri(uri).replacePath(String.join("/", path.subList(0, i)) + "/").build();
             try {
-                RestFileSystem rfs = newFileSystem(trialURI, null);
+                FileSystem rfs = newFileSystem(trialURI, null);
                 return rfs.getPath(path.get(i), String.join("/", path.subList(i + 1, path.size())));
             } catch (IOException x) {
                 // OK, just carry on
@@ -205,6 +208,10 @@ public class RestFileSystemProvider extends FileSystemProvider {
             throw new ProviderMismatchException();
         }
         return (RestPath) path;
+    }
+
+    void dispose(URI uri) {
+        cache.remove(uri);
     }
 
 }

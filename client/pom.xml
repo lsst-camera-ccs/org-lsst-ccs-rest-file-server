@@ -70,6 +70,11 @@
             <classifier>classes</classifier>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-jcs3-core</artifactId>
+            <version>3.0</version>
+        </dependency>
     </dependencies>
     
     <build>

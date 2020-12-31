@@ -3,10 +3,13 @@
   "includes":[
     {"pattern":"\\QMETA-INF/services/com.fasterxml.jackson.databind.Module\\E"}, 
     {"pattern":"\\QMETA-INF/services/java.nio.file.spi.FileSystemProvider\\E"}, 
+    {"pattern":"\\QMETA-INF/services/org.apache.commons.jcs3.log.LogFactory\\E"}, 
     {"pattern":"\\QMETA-INF/services/org.glassfish.hk2.extension.ServiceLocatorGenerator\\E"}, 
     {"pattern":"\\QMETA-INF/services/org.glassfish.jersey.internal.inject.InjectionManagerFactory\\E"}, 
     {"pattern":"\\QMETA-INF/services/org.glassfish.jersey.internal.spi.AutoDiscoverable\\E"}, 
-    {"pattern":"\\Qorg/glassfish/jersey/internal/build.properties\\E"}
+    {"pattern":"\\Qorg/glassfish/jersey/internal/build.properties\\E"}, 
+    {"pattern":"\\Qorg/lsst/ccs/rest/file/server/client/implementation/disk.ccf\\E"}, 
+    {"pattern":"\\Qorg/lsst/ccs/rest/file/server/client/implementation/memory.ccf\\E"}
   ]},
   "bundles":[
     {"name":"org.glassfish.jersey.client.internal.localization"}, 

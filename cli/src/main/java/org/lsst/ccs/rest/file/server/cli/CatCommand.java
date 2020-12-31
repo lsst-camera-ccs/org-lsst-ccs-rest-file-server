@@ -43,23 +43,24 @@ public class CatCommand implements Callable<Void> {
 
     @Override   
     public Void call() throws IOException {
-        FileSystem restfs = parent.createFileSystem();
-        Path restPath = restfs.getPath(path);
-        if (!create && !createVersioned) {
-            OpenOptionsBuilder builder = Utils.openOptionsBuilder();
-            boolean isVersionedFile = (boolean) Files.getAttribute(restPath, "isVersionedFile");
-            if (isVersionedFile) builder.add(VersionOpenOption.of(version));
-            try (InputStream in = Files.newInputStream(restPath, builder.build())) {
-                // Java 9 in.transferTo(System.out);
-                Utils.copy(in, System.out);
+        try (FileSystem restfs = parent.createFileSystem()) {
+            Path restPath = restfs.getPath(path);
+            if (!create && !createVersioned) {
+                OpenOptionsBuilder builder = Utils.openOptionsBuilder();
+                boolean isVersionedFile = (boolean) Files.getAttribute(restPath, "isVersionedFile");
+                if (isVersionedFile) builder.add(VersionOpenOption.of(version));
+                try (InputStream in = Files.newInputStream(restPath, builder.build())) {
+                    // Java 9 in.transferTo(System.out);
+                    Utils.copy(in, System.out);
+                }
+            } else {
+                OpenOptionsBuilder builder = Utils.openOptionsBuilder();
+                if (createVersioned) builder.add(VersionOpenOption.LATEST);
+                try (OutputStream out = Files.newOutputStream(restPath, builder.build())) {
+                    Utils.copy(System.in, out);
+                }
             }
-        } else {
-            OpenOptionsBuilder builder = Utils.openOptionsBuilder();
-            if (createVersioned) builder.add(VersionOpenOption.LATEST);
-            try (OutputStream out = Files.newOutputStream(restPath, builder.build())) {
-                Utils.copy(System.in, out);
-            }
+            return null;
         }
-        return null;
     }
 }

@@ -1,0 +1,29 @@
+[
+  {
+  "name":"[B"
+  },
+  {
+  "name":"org.apache.commons.jcs3.auxiliary.disk.indexed.IndexedDiskElementDescriptor"
+  },
+  {
+  "name":"org.apache.commons.jcs3.engine.ElementAttributes"
+  },
+  {
+  "name":"org.lsst.ccs.rest.file.server.client.implementation.Cache$CacheEntry"
+  },
+  {
+  "name":"org.apache.commons.jcs3.engine.CacheElement"
+  },
+  {
+  "name":"java.util.HashMap"
+  },
+  {
+  "name":"java.lang.String"
+  },
+  {
+  "name":"java.util.Date"
+  },
+  {
+  "name":"java.net.URI"
+  }
+]
