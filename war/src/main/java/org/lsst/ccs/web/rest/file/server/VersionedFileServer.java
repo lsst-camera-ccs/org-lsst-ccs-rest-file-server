@@ -5,12 +5,14 @@ import com.github.difflib.UnifiedDiffUtils;
 import com.github.difflib.algorithm.DiffException;
 import com.github.difflib.patch.Patch;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import javax.inject.Inject;
 import javax.servlet.ServletContext;
@@ -24,7 +26,9 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.EntityTag;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import org.jvnet.hk2.annotations.Optional;
@@ -41,7 +45,7 @@ import org.lsst.ccs.web.rest.file.server.data.VersionInfo.Version;
 public class VersionedFileServer {
 
     @Inject
-    @Optional  
+    @Optional
     private java.nio.file.Path baseDir;
 
     @Context
@@ -50,7 +54,7 @@ public class VersionedFileServer {
             String initParameter = context.getInitParameter("org.lsst.ccs.web.rest.file.server.baseDir");
             if (initParameter != null) {
                 baseDir = Paths.get(initParameter);
-            } 
+            }
         }
         if (baseDir == null) {
             baseDir = Paths.get("/home/tonyj/ConfigTest/");
@@ -59,14 +63,14 @@ public class VersionedFileServer {
 
     @GET
     @Path("info/{filePath: .*}")
-    public VersionInfo info(@PathParam("filePath") String filePath) throws IOException {
+    public Response info(@PathParam("filePath") String filePath, @Context Request request) throws IOException {
         java.nio.file.Path path = baseDir.resolve(filePath);
         VersionedFile cf = new VersionedFile(path);
         VersionInfo result = new VersionInfo();
         result.setDefault(cf.getDefaultVersion());
         result.setLatest(cf.getLatestVersion());
         List<Version> fileVersions = new ArrayList<>();
-        int[] versions = cf.getVersions();      
+        int[] versions = cf.getVersions();
         for (int version : versions) {
             java.nio.file.Path child = cf.getPathForVersion(version);
             BasicFileAttributes fileAttributes = Files.getFileAttributeView(child, BasicFileAttributeView.class).readAttributes();
@@ -75,17 +79,29 @@ public class VersionedFileServer {
             fileVersions.add(info);
         }
         result.setVersions(fileVersions);
-        return result;
+        EntityTag eTag = new EntityTag(ETagHelper.computeEtag(result));
+        Response.ResponseBuilder builder = request.evaluatePreconditions(eTag);
+        if (builder != null) {
+            return builder.tag(eTag).build();
+        }
+        return Response.ok(result)
+                .tag(eTag)
+                .build();
     }
 
     @GET
     @Path("download/{filePath: .*}")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
-    public Response file(@PathParam("filePath") String filePath, @QueryParam("version") String version) throws IOException {
+    public Response file(@PathParam("filePath") String filePath, @QueryParam("version") String version, @Context Request request) throws IOException {
         java.nio.file.Path path = baseDir.resolve(filePath);
         VersionedFile vf = new VersionedFile(path);
         int versionNumber = computeVersion(vf, version);
         java.nio.file.Path fileToReturn = vf.getPathForVersion(versionNumber);
+        Date lastModified = new Date(Files.getLastModifiedTime(fileToReturn).toMillis());
+        Response.ResponseBuilder builder = request.evaluatePreconditions(lastModified);
+        if (builder != null) {
+            return builder.lastModified(lastModified).build();
+        }
         StreamingOutput fileStream = (java.io.OutputStream output) -> {
             byte[] data = Files.readAllBytes(fileToReturn);
             output.write(data);
@@ -94,6 +110,7 @@ public class VersionedFileServer {
         return Response.ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
                 .header("content-disposition", "attachment; filename = " + path.getFileName())
                 .header("version", versionNumber)
+                .lastModified(lastModified)
                 .build();
     }
 
@@ -119,7 +136,7 @@ public class VersionedFileServer {
     @GET
     @Path("diff/{filePath: .*}")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
-    public Response diff(@PathParam("filePath") String filePath, @QueryParam("v1") String v1, @QueryParam("v2") String v2) throws IOException, DiffException {
+    public Response diff(@PathParam("filePath") String filePath, @QueryParam("v1") String v1, @QueryParam("v2") String v2, @Context Request request) throws IOException, DiffException {
         java.nio.file.Path path = baseDir.resolve(filePath);
         VersionedFile vf = new VersionedFile(path);
 
@@ -131,10 +148,14 @@ public class VersionedFileServer {
         List<String> lines1 = Files.readAllLines(file1);
         List<String> lines2 = Files.readAllLines(file2);
         Patch<String> diff = DiffUtils.diff(lines1, lines2);
-        List<String> generateUnifiedDiff = UnifiedDiffUtils.generateUnifiedDiff(vf.getFileName() + ";" + v1, vf.getFileName() + ";" + v2, lines1, diff, 2);
-
+        List<String> diffList = UnifiedDiffUtils.generateUnifiedDiff(vf.getFileName() + ";" + v1, vf.getFileName() + ";" + v2, lines1, diff, 2);
+        EntityTag eTag = new EntityTag(ETagHelper.computeEtag((Serializable) diffList));
+        Response.ResponseBuilder builder = request.evaluatePreconditions(eTag);
+        if (builder != null) {
+            return builder.tag(eTag).build();
+        }
         StreamingOutput fileStream = (java.io.OutputStream output) -> {
-            for (String dLines : generateUnifiedDiff) {
+            for (String dLines : diffList) {
                 output.write(dLines.getBytes());
                 output.write('\n');
                 output.flush();
@@ -142,17 +163,18 @@ public class VersionedFileServer {
         };
         return Response.ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
                 .header("content-disposition", "attachment; filename = " + path.getFileName())
+                .tag(eTag)
                 .build();
     }
 
     @PUT
     @Path("set/{filePath: .*}")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Object set(@PathParam("filePath") String filePath, int defaultVersion) throws IOException {
+    public Object set(@PathParam("filePath") String filePath, int defaultVersion, @Context Request request) throws IOException {
         java.nio.file.Path path = baseDir.resolve(filePath);
         VersionedFile vf = new VersionedFile(path);
         vf.setDefaultVersion(defaultVersion);
-        return info(filePath);
+        return info(filePath, request);
     }
 
     @POST
@@ -166,10 +188,10 @@ public class VersionedFileServer {
             return Collections.singletonMap("version", newVersion);
         } else {
             VersionedFile vf = VersionedFile.create(path, content);
-            return Collections.singletonMap("version", 1);            
+            return Collections.singletonMap("version", 1);
         }
     }
-    
+
     @DELETE
     @Path("deleteFile/{filePath: .*}")
     public Response deleteFile(@PathParam("filePath") String filePath) throws IOException {
@@ -178,5 +200,5 @@ public class VersionedFileServer {
         vf.delete();
         return Response.ok().build();
     }
-    
+
 }

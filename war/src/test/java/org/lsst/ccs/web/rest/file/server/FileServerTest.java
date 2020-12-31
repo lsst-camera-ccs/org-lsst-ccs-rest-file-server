@@ -17,6 +17,7 @@ import javax.ws.rs.core.Response;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -121,6 +122,7 @@ public class FileServerTest {
         URI listURI = testServer.getServerURI().resolve("rest/list");
         Response response = client.target(listURI).request(MediaType.APPLICATION_JSON).get();
         assertEquals(200, response.getStatus());
+        assertNotNull(response.getEntityTag());
         RestFileInfo fileInfo = response.readEntity(RestFileInfo.class);
         return fileInfo;
     }
@@ -129,6 +131,7 @@ public class FileServerTest {
         URI infoURI = testServer.getServerURI().resolve("rest/info/"+file);
         Response response = client.target(infoURI).request(MediaType.APPLICATION_JSON).get();
         assertEquals(200, response.getStatus());
+        assertNotNull(response.getEntityTag());
         RestFileInfo fileInfo = response.readEntity(RestFileInfo.class);
         return fileInfo;
     }

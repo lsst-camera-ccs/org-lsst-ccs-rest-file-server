@@ -80,7 +80,7 @@ public class CachingTest {
                 Files.delete(pathInRestServer2);
                 fail("Should not get here");
             } catch (IOException x) {
-                x.printStackTrace();
+                // Expected
             }
         }
     }

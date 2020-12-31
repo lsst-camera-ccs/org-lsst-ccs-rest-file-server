@@ -96,13 +96,12 @@ public class FileServer {
     @Path("info/{filePath: .*}")
     public Response info(@PathParam("filePath") String filePath, @Context Request request) throws IOException {
         java.nio.file.Path file = baseDir.resolve(filePath);
-        Date lastModified = new Date(Files.getLastModifiedTime(file).toMillis());
-        ResponseBuilder builder = request.evaluatePreconditions(lastModified);
-        if (builder != null) {
-            return builder.lastModified(lastModified).build();
-        }
         final RestFileInfo fileAtrributes = getFileAtrributes(file, filePath);
         EntityTag eTag = new EntityTag(ETagHelper.computeEtag(fileAtrributes));
+        ResponseBuilder builder = request.evaluatePreconditions(eTag);
+        if (builder != null) {
+            return builder.tag(eTag).build();
+        }
         return Response.ok(fileAtrributes)
                 .tag(eTag)
                 .build();
