@@ -113,11 +113,14 @@ public class VersionedFileServer {
                 .lastModified(lastModified)
                 .build();
     }
-
     private int computeVersion(VersionedFile vf, String version) throws IOException, NumberFormatException {
+        return computeVersion(vf, version, "default");
+    }
+
+    private int computeVersion(VersionedFile vf, String version, String defaultVersion) throws IOException, NumberFormatException {
         int versionNumber;
         if (version == null || version.isEmpty()) {
-            version = "default";
+            version = defaultVersion;
         }
         switch (version) {
             case "default":
@@ -140,15 +143,18 @@ public class VersionedFileServer {
         java.nio.file.Path path = baseDir.resolve(filePath);
         VersionedFile vf = new VersionedFile(path);
 
-        int iv1 = computeVersion(vf, v1);
-        int iv2 = computeVersion(vf, v2);
+        int iv1 = computeVersion(vf, v1, "latest");
+        int iv2 = computeVersion(vf, v2, String.valueOf(iv1-1));
+        if (iv2<1) {
+            throw new IOException("No previous version");
+        }
 
         java.nio.file.Path file1 = vf.getPathForVersion(iv1);
         java.nio.file.Path file2 = vf.getPathForVersion(iv2);
         List<String> lines1 = Files.readAllLines(file1);
         List<String> lines2 = Files.readAllLines(file2);
-        Patch<String> diff = DiffUtils.diff(lines1, lines2);
-        List<String> diffList = UnifiedDiffUtils.generateUnifiedDiff(vf.getFileName() + ";" + v1, vf.getFileName() + ";" + v2, lines1, diff, 2);
+        Patch<String> diff = DiffUtils.diff(lines2, lines1);
+        List<String> diffList = UnifiedDiffUtils.generateUnifiedDiff(vf.getFileName() + ";" + iv2, vf.getFileName() + ";" + iv1, lines1, diff, 2);
         EntityTag eTag = new EntityTag(ETagHelper.computeEtag((Serializable) diffList));
         Response.ResponseBuilder builder = request.evaluatePreconditions(eTag);
         if (builder != null) {

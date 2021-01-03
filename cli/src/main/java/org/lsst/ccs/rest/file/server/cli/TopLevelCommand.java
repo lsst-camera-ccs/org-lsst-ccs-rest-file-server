@@ -22,6 +22,7 @@ import picocli.CommandLine.Option;
     CatCommand.class,
     EditCommand.class,
     ListCommand.class, 
+    DiffCommand.class,
     MoveCommand.class,
     MakeDirectoryCommand.class,
     HelpCommand.class})

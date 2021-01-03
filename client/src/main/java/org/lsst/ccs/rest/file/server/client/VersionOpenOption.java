@@ -3,7 +3,7 @@ package org.lsst.ccs.rest.file.server.client;
 import java.nio.file.OpenOption;
 
 /**
- *
+ * Used to specify which version of a versioned file to read.
  * @author tonyj
  */
 public class VersionOpenOption implements OpenOption {

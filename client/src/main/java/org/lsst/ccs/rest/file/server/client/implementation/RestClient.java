@@ -21,6 +21,7 @@ import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileTime;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,7 @@ import javax.ws.rs.core.UriBuilder;
 import org.lsst.ccs.rest.file.server.client.VersionOpenOption;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributeView;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributes;
+import org.lsst.ccs.rest.file.server.client.VersionedOpenOption;
 import org.lsst.ccs.web.rest.file.server.data.IOExceptionResponse;
 import org.lsst.ccs.web.rest.file.server.data.RestFileInfo;
 import org.lsst.ccs.web.rest.file.server.data.VersionInfo;
@@ -70,12 +72,23 @@ class RestClient implements Closeable {
     InputStream newInputStream(RestPath path, OpenOption[] options) throws IOException {
         URI uri;
         if (path.isVersionedFile()) {
-            VersionOpenOption vo = getOptions(options, VersionOpenOption.class);
-            if (vo == null) {
-                vo = VersionOpenOption.DEFAULT;
+            if (hasOption(options, VersionedOpenOption.DIFF)) {
+                UriBuilder builder = UriBuilder.fromUri(getRestURI("rest/version/diff/", path));
+                List<VersionOpenOption> vos = getOptions(options, VersionOpenOption.class);
+                if (vos.size() > 0) { 
+                    builder.queryParam("v1", vos.get(0).value());
+                    if (vos.size() > 1) { 
+                        builder.queryParam("v2", vos.get(1).value());
+                    }
+                }
+                uri = builder.build();
+            } else {
+                VersionOpenOption vo = getOption(options, VersionOpenOption.class);
+                if (vo == null) {
+                    vo = VersionOpenOption.DEFAULT;
+                }
+                uri = UriBuilder.fromUri(getRestURI("rest/version/download/", path)).queryParam("version", vo.value()).build();
             }
-            uri = getRestURI("rest/version/download/", path);
-            uri = UriBuilder.fromUri(uri).queryParam("version", vo.value()).build();
         } else {
             uri = getRestURI("rest/download/", path);
         }
@@ -91,7 +104,7 @@ class RestClient implements Closeable {
     OutputStream newOutputStream(RestPath path, OpenOption[] options) throws IOException {
 
         // TODO: Deal with options
-        VersionOpenOption voo = getOptions(options, VersionOpenOption.class);
+        VersionOpenOption voo = getOption(options, VersionOpenOption.class);
         String restPath = path.isVersionedFile() || voo != null ? "rest/version/upload/" : "rest/upload/";
         WebTarget target = getRestTarget(restPath, path);
         BlockingQueue<Future<Response>> queue = new ArrayBlockingQueue<>(1);
@@ -152,7 +165,8 @@ class RestClient implements Closeable {
         Response response = deleteAndCheckResponse(getRestTarget(restPath, path).request(MediaType.APPLICATION_JSON));
     }
 
-    void move(RestPath source, RestPath target, CopyOption[] options) throws IOException {
+    void move(RestPath source, RestPath target,
+            CopyOption[] options) throws IOException {
         URI uri = UriBuilder.fromUri(getRestURI("rest/move/", source)).queryParam("target", target.getRestPath()).build();
         Response response = postAndCheckResponse(client.target(uri).request(MediaType.APPLICATION_JSON), null);
     }
@@ -183,7 +197,8 @@ class RestClient implements Closeable {
         return new RestVersionedFileAttributes(info);
     }
 
-    BasicFileAttributeView getFileAttributeView(RestPath path, LinkOption[] options) {
+    BasicFileAttributeView getFileAttributeView(RestPath path, LinkOption[] options
+    ) {
         return new BasicFileAttributeView() {
             @Override
             public String name() {
@@ -202,7 +217,8 @@ class RestClient implements Closeable {
         };
     }
 
-    VersionedFileAttributeView getVersionedAttributeView(RestPath path, LinkOption[] options) {
+    VersionedFileAttributeView getVersionedAttributeView(RestPath path, LinkOption[] options
+    ) {
         return new VersionedFileAttributeView() {
 
             @Override
@@ -223,7 +239,8 @@ class RestClient implements Closeable {
         };
     }
 
-    Map<String, Object> readAttributes(RestPath path, String attributes, LinkOption[] options) throws IOException {
+    Map<String, Object> readAttributes(RestPath path, String attributes,
+            LinkOption[] options) throws IOException {
         final RestFileInfo restFileInfo = getRestFileInfo(path);
         final Map<String, Object> result = restFileInfo.toMap();
         if (restFileInfo.isVersionedFile()) {
@@ -263,7 +280,7 @@ class RestClient implements Closeable {
             throw convertProcessingException(x);
         }
     }
-    
+
     private Response postAndCheckResponse(Invocation.Builder request, Entity<?> entity) throws IOException {
         try {
             Response response = request.post(entity);
@@ -310,13 +327,32 @@ class RestClient implements Closeable {
         }
     }
 
-    private <T extends OpenOption> T getOptions(OpenOption[] options, Class<T> optionClass) {
+    private <T extends OpenOption> T getOption(OpenOption[] options, Class<T> optionClass) {
         for (OpenOption option : options) {
             if (optionClass.isInstance(option)) {
                 return optionClass.cast(option);
             }
         }
         return null;
+    }
+
+    private <T extends OpenOption> List<T> getOptions(OpenOption[] options, Class<T> optionClass) {
+        List<T> result = new ArrayList<>();
+        for (OpenOption option : options) {
+            if (optionClass.isInstance(option)) {
+                result.add(optionClass.cast(option));
+            }
+        }
+        return result;
+    }
+
+    private boolean hasOption(OpenOption[] options, Enum<?> search) {
+        for (OpenOption option : options) {
+            if (search.equals(option)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

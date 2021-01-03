@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.OpenOption;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -24,12 +25,16 @@ class Utils {
         }
     }
 
-    static OpenOptionsBuilder openOptionsBuilder() {
-        return new OpenOptionsBuilder();
+    static OpenOptionsBuilder openOptionsBuilder(OpenOption... options) {
+        return new OpenOptionsBuilder(options);
     }
 
     static class OpenOptionsBuilder {
-        private final List<OpenOption> options = new ArrayList<>();
+        private final List<OpenOption> options;
+
+        private OpenOptionsBuilder(OpenOption[] initialOptions) {
+            options = new ArrayList<>(Arrays.asList(initialOptions));
+        }
         
         void add(OpenOption option) {
             options.add(option);

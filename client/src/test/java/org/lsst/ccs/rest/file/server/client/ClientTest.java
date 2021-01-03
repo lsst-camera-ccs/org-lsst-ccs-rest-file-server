@@ -3,6 +3,7 @@ package org.lsst.ccs.rest.file.server.client;
 import java.io.BufferedWriter;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.FileAlreadyExistsException;
@@ -201,6 +202,27 @@ public class ClientTest {
         versionView.setDefaultVersion(2);
         assertTrue(versionView.readAttributes().getDefaultVersion() == 2);
         assertTrue(versionView.readAttributes().getLatestVersion()== 2);
+        
+        try (InputStream in = Files.newInputStream(pathInRestServer, VersionedOpenOption.DIFF, VersionOpenOption.of(2), VersionOpenOption.of(1))) {
+            byte[] buffer = new byte[32768];
+            for (;;) {
+                int l = in.read(buffer);
+                if (l<0) break;
+                System.out.write(buffer, 0, l);
+            }
+        }
+
+        try (InputStream in = Files.newInputStream(pathInRestServer, VersionedOpenOption.DIFF)) {
+            byte[] buffer = new byte[32768];
+            for (;;) {
+                int l = in.read(buffer);
+                if (l<0) break;
+                System.out.write(buffer, 0, l);
+            }
+        }
+        
+//        try (InputStream in = Files.newInputStream(pathInRestServer, VersionedOpenOption.DIFF, VersionOpenOption.of(1))) {
+//        }
     }
     
     @Test
