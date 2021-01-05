@@ -9,7 +9,7 @@
     <parent>
         <relativePath>../</relativePath>
         <groupId>org.lsst</groupId>
-        <artifactId>rest-file-server</artifactId>
+        <artifactId>org-lsst-ccs-rest-file-server</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 

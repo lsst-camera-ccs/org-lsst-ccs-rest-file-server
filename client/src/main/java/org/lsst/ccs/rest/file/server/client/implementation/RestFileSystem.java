@@ -83,13 +83,15 @@ class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
                 } else if (response.getStatus() != 200) {
                     throw new IOException("Cannot create rest file system, rc=" + response.getStatus());
                 }
-            } catch (ProcessingException x) {
+            } catch (ProcessingException | IOException x) {
                 if (options.getCacheOptions() == RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK 
                         && options.getCacheFallback() != RestFileSystemOptions.CacheFallback.NEVER) {
                     offline = true;
                     LOG.log(Level.WARNING, () -> String.format("Rest File server running in offline mode: %s (%s)", uri, x.getMessage()));
+                } else if (x instanceof ProcessingException) {
+                    throw RestClient.convertProcessingException((ProcessingException) x);
                 } else {
-                    throw RestClient.convertProcessingException(x);
+                    throw x;
                 }
             }
         }
