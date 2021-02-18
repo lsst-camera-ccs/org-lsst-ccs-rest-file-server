@@ -1,6 +1,8 @@
 package org.lsst.ccs.rest.file.server.client.implementation;
 
 import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
 
@@ -27,19 +29,25 @@ class RestFileSystemOptionsHelper {
     RestFileSystemOptions.CacheFallback getCacheFallback() {
         return getOption(RestFileSystemOptions.CACHE_FALLBACK, RestFileSystemOptions.CacheFallback.class, RestFileSystemOptions.CacheFallback.OFFLINE);
     }
-    
+
     boolean isCacheLogging() {
         return getOption(RestFileSystemOptions.CACHE_LOGGING, Boolean.class, Boolean.FALSE);
     }
-    
-    File getDiskCacheLocation() {
+
+    boolean allowAlternateCacheLoction() {
+        return getOption(RestFileSystemOptions.ALLOW_ALTERNATE_CACHE_LOCATION, Boolean.class, Boolean.FALSE);
+    }
+
+    Path getDiskCacheLocation() {
         Object result = env.get(RestFileSystemOptions.CACHE_LOCATION);
         if (result == null) {
             return null;
+        } else if (result instanceof Path) {
+            return (Path) result;
         } else if (result instanceof File) {
-            return (File) result;
+            return ((File) result).toPath();
         } else if (result instanceof String) {
-            return new File(((String) result));
+            return Paths.get((String) result);
         } else {
             throw new IllegalArgumentException("Invalid value for option " + RestFileSystemOptions.CACHE_LOCATION + ": " + result);
         }
@@ -56,4 +64,5 @@ class RestFileSystemOptionsHelper {
         }
         throw new IllegalArgumentException("Invalid value for option " + optionName + ": " + result);
     }
+
 }

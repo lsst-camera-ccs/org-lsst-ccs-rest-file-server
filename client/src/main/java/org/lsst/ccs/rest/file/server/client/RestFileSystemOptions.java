@@ -1,6 +1,7 @@
 package org.lsst.ccs.rest.file.server.client;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,6 +18,7 @@ public class RestFileSystemOptions {
     public final static String CACHE_LOGGING = "CacheLogging";
     public final static String USE_SSL = "UseSSL";
     public final static String CACHE_LOCATION = "CacheLocation";
+    public final static String ALLOW_ALTERNATE_CACHE_LOCATION = "CacheFallbackLocation";
 
     public enum CacheOptions {
         NONE, MEMORY_ONLY, MEMORY_AND_DISK
@@ -42,6 +44,11 @@ public class RestFileSystemOptions {
             return this;
         }
 
+        public Builder cacheLocation(Path location) {
+            map.put(CACHE_LOCATION, location);
+            return this;
+        }
+        
         public Builder logging(boolean log) {
             map.put(CACHE_LOGGING, log);
             return this;
@@ -60,6 +67,11 @@ public class RestFileSystemOptions {
         public Builder set(CacheFallback option) {
             map.put(CACHE_FALLBACK, option);
             return this;
+        }
+        
+        public Builder ignoreLockedCache(boolean allow) {
+            map.put(ALLOW_ALTERNATE_CACHE_LOCATION, allow);
+            return this;            
         }
         
         public Map<String, Object> build() {

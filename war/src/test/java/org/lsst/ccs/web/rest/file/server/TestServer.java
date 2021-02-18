@@ -22,6 +22,10 @@ public class TestServer {
     private final HttpServer httpServer;
 
     public TestServer() throws URISyntaxException, IOException {
+        this(9999);
+    }
+    
+    public TestServer(int port) throws URISyntaxException, IOException {
         tempDir = Files.createTempDirectory("RestServer");
         MyConfiguration rc = new MyConfiguration();
         rc.register(new AbstractBinder() {
@@ -30,7 +34,7 @@ public class TestServer {
                 bind(tempDir).to(Path.class);
             }
         });
-        serverURI = new URI("http://localhost:9999/");
+        serverURI = new URI("http://localhost:"+port+"/");
         httpServer = JdkHttpServerFactory.createHttpServer(serverURI.resolve("rest"), rc, true);
     }
 

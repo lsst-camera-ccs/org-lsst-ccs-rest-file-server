@@ -3,11 +3,16 @@ package org.lsst.ccs.rest.file.server.client.implementation;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.net.URI;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Date;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -26,6 +31,7 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
 class Cache implements Closeable {
 
     private CacheAccess<URI, CacheEntry> map;
+    private FileLock lock;
 
     Cache(RestFileSystemOptionsHelper options) throws IOException {
 
@@ -44,9 +50,31 @@ class Cache implements Closeable {
             try (InputStream in = Cache.class.getResourceAsStream("disk.ccf")) {
                 props.load(in);
             }
-            File cacheLocation = options.getDiskCacheLocation();
+            Path cacheLocation = options.getDiskCacheLocation();
             if (cacheLocation != null) {
-                props.setProperty("jcs.auxiliary.DC.attributes.DiskPath", cacheLocation.getAbsolutePath());
+
+                // Check that we can lock the cache, and if not what to do about it
+                Files.createDirectories(cacheLocation);
+                if (Files.isDirectory(cacheLocation) || Files.isWritable(cacheLocation)) {
+                    Path lockFile = cacheLocation.resolve("lockFile");
+                    for (int n=0; n<10; n++) {
+                        FileChannel lockFileChannel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        try {
+                            lock = lockFileChannel.lock();
+                            break;
+                        } catch (OverlappingFileLockException x) {
+                            if (!options.allowAlternateCacheLoction()) {
+                                throw new IOException("Cache already in use", x);
+                            } else {
+                                lockFile = cacheLocation.resolve("lockFile-"+n);
+                            }
+                        }
+                    }
+                } else {
+                    throw new IOException("Invalid cache location: " + cacheLocation);
+                }
+
+                props.setProperty("jcs.auxiliary.DC.attributes.DiskPath", cacheLocation.toAbsolutePath().toString());
             }
         }
         CompositeCacheManager ccm = CompositeCacheManager.getUnconfiguredInstance();
@@ -65,9 +93,8 @@ class Cache implements Closeable {
 
     @Override
     public void close() throws IOException {
-        //CompositeCacheManager.getInstance().deregisterShutdownObserver(observer);
-        //map.dispose();
-        //JCS.shutdown();
+        lock.close();
+        lock.channel().close();
     }
 
     public static class CacheEntry implements Serializable {

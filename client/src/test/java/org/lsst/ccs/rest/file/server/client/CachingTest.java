@@ -1,7 +1,6 @@
 package org.lsst.ccs.rest.file.server.client;
 
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -31,7 +30,7 @@ public class CachingTest {
     public void cacheTest() throws IOException, URISyntaxException {
         TestServer testServer = new TestServer();
         URI restRootURI = UriBuilder.fromUri(testServer.getServerURI()).scheme("ccs").build();
-        final File tempDir = Files.createTempDirectory("rfs").toFile();
+        final Path tempDir = Files.createTempDirectory("rfs");
         Map<String, Object> env = RestFileSystemOptions.builder()
                 .cacheLocation(tempDir)
                 .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
@@ -41,11 +40,11 @@ public class CachingTest {
         final String content = "I wlll be cached!";
         final String fileName = "testCache.txt";
 
-        try (FileSystem restfs = FileSystems.newFileSystem(restRootURI, env)) {
+        try ( FileSystem restfs = FileSystems.newFileSystem(restRootURI, env)) {
 
             Path pathInRestServer = restfs.getPath(fileName);
             assertFalse(Files.exists(pathInRestServer));
-            try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer)) {
+            try ( BufferedWriter writer = Files.newBufferedWriter(pathInRestServer)) {
                 writer.append(content);
             }
             listAndRead(pathInRestServer, content);
@@ -53,7 +52,7 @@ public class CachingTest {
             testServer.shutdown();
         }
 
-        try (FileSystem restfs2 = FileSystems.newFileSystem(restRootURI, env)) {
+        try ( FileSystem restfs2 = FileSystems.newFileSystem(restRootURI, env)) {
             Path pathInRestServer2 = restfs2.getPath(fileName);
 
             listAndRead(pathInRestServer2, content);
@@ -68,7 +67,7 @@ public class CachingTest {
             }
 
             try {
-                try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer2)) {
+                try ( BufferedWriter writer = Files.newBufferedWriter(pathInRestServer2)) {
                     writer.append(content);
                 }
                 fail("Should not get here");
@@ -82,6 +81,45 @@ public class CachingTest {
             } catch (IOException x) {
                 // Expected
             }
+        }
+    }
+
+    @Test
+    public void cacheLockTest() throws URISyntaxException, IOException {
+        final Path tempDir = Files.createTempDirectory("rfs");
+
+        TestServer testServer = new TestServer();
+        TestServer testServer2 = new TestServer(9998);
+        try {
+            URI restRootURI = UriBuilder.fromUri(testServer.getServerURI()).scheme("ccs").build();
+            Map<String, Object> env = RestFileSystemOptions.builder()
+                    .cacheLocation(tempDir)
+                    .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
+                    .set(RestFileSystemOptions.CacheFallback.OFFLINE)
+                    .build();
+            try (FileSystem restfs = FileSystems.newFileSystem(restRootURI, env)) {
+
+                URI restRootURI2 = UriBuilder.fromUri(testServer2.getServerURI()).scheme("ccs").build();
+                Map<String, Object> env2 = RestFileSystemOptions.builder()
+                        .cacheLocation(tempDir)
+                        .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
+                        .set(RestFileSystemOptions.CacheFallback.OFFLINE)
+                        .build();
+                try {
+                    FileSystems.newFileSystem(restRootURI2, env2);
+                    fail();
+                } catch (IOException x) {
+                    assertTrue(x.getMessage().contains("in use"));
+                }
+
+                env2.put(RestFileSystemOptions.ALLOW_ALTERNATE_CACHE_LOCATION, true);
+                try (FileSystem restfs2 = FileSystems.newFileSystem(restRootURI2, env2)) {
+                    // We should get here
+                }
+            }
+        } finally {
+            testServer.shutdown();
+            testServer2.shutdown();
         }
     }
 
