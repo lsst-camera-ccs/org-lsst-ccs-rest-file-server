@@ -105,7 +105,13 @@ class RestClient implements Closeable {
 
         // TODO: Deal with options
         VersionOpenOption voo = getOption(options, VersionOpenOption.class);
-        String restPath = path.isVersionedFile() || voo != null ? "rest/version/upload/" : "rest/upload/";
+        boolean isVersionedFile;
+        try {
+            isVersionedFile = voo != null || path.isVersionedFile();
+        } catch (IOException x) {
+            isVersionedFile = false;
+        }
+        String restPath = isVersionedFile ? "rest/version/upload/" : "rest/upload/";
         WebTarget target = getRestTarget(restPath, path);
         BlockingQueue<Future<Response>> queue = new ArrayBlockingQueue<>(1);
         PipedOutputStream out = new PipedOutputStream() {

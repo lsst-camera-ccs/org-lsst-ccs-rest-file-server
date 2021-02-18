@@ -45,12 +45,8 @@ class RestPath extends AbstractPath {
 
     synchronized boolean isVersionedFile() throws IOException {
         if (isVersionedFile == null) {
-            try {
-                RestFileInfo info = getClient().getRestFileInfo(this);
-                isVersionedFile = info.isVersionedFile();
-            } catch (NoSuchFileException | FileNotFoundException x) {
-                // We do not know if it may be versioned in future
-            }
+            RestFileInfo info = getClient().getRestFileInfo(this);
+            isVersionedFile = info.isVersionedFile();
         }
         return isVersionedFile != null && isVersionedFile;
     }
