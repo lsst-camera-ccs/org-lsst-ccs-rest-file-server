@@ -43,35 +43,41 @@ class Cache implements Closeable {
         }
 
         Properties props = new Properties();
-        try (InputStream in = Cache.class.getResourceAsStream("memory.ccf")) {
+        try ( InputStream in = Cache.class.getResourceAsStream("memory.ccf")) {
             props.load(in);
         }
         if (options.getCacheOptions() == RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK) {
-            try (InputStream in = Cache.class.getResourceAsStream("disk.ccf")) {
+            try ( InputStream in = Cache.class.getResourceAsStream("disk.ccf")) {
                 props.load(in);
             }
             Path cacheLocation = options.getDiskCacheLocation();
             if (cacheLocation != null) {
-
                 // Check that we can lock the cache, and if not what to do about it
-                Files.createDirectories(cacheLocation);
-                if (Files.isDirectory(cacheLocation) || Files.isWritable(cacheLocation)) {
-                    Path lockFile = cacheLocation.resolve("lockFile");
-                    for (int n=0; n<10; n++) {
+                for (int n = 1; n < 100; n++) {
+                    Files.createDirectories(cacheLocation);
+                    if (Files.isDirectory(cacheLocation) || Files.isWritable(cacheLocation)) {
+                        Path lockFile = cacheLocation.resolve("lockFile");
                         FileChannel lockFileChannel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                         try {
-                            lock = lockFileChannel.lock();
-                            break;
+                            lock = lockFileChannel.tryLock();
+                            if (lock != null) {
+                                break;
+                            } else if (!options.allowAlternateCacheLoction()) {
+                                throw new IOException("Cache already in use");
+                            }
                         } catch (OverlappingFileLockException x) {
                             if (!options.allowAlternateCacheLoction()) {
                                 throw new IOException("Cache already in use", x);
-                            } else {
-                                lockFile = cacheLocation.resolve("lockFile-"+n);
                             }
                         }
+                        cacheLocation = cacheLocation.resolveSibling(cacheLocation.getFileName() + "-" + n);
+
+                    } else {
+                        throw new IOException("Invalid cache location: " + cacheLocation);
                     }
-                } else {
-                    throw new IOException("Invalid cache location: " + cacheLocation);
+                }
+                if (lock == null) {
+                    throw new IOException("Cache already in use and unable to get alternate cache location");
                 }
 
                 props.setProperty("jcs.auxiliary.DC.attributes.DiskPath", cacheLocation.toAbsolutePath().toString());
