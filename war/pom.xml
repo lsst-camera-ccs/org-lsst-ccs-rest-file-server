@@ -6,12 +6,12 @@
         <relativePath>../</relativePath>
         <groupId>org.lsst</groupId>
         <artifactId>org-lsst-ccs-rest-file-server</artifactId>
-        <version>1.0.0</version>
+        <version>1.0.1-SNAPSHOT</version>
     </parent>
 
     <groupId>org.lsst</groupId>
     <artifactId>org-lsst-ccs-rest-file-server-war</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1-SNAPSHOT</version>
     <packaging>war</packaging>
 
     <name>LSST CCS - Rest File Server - Server</name>
@@ -78,7 +78,7 @@
         <dependency>
             <groupId>org.lsst</groupId>
             <artifactId>org-lsst-ccs-rest-file-server-common</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.1-SNAPSHOT</version>
         </dependency>
         <!-- needed for URL rewrite prior to tomcat 8 -->
         <dependency>
