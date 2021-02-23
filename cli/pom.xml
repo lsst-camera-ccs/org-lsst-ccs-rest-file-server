@@ -16,7 +16,7 @@
     <name>LSST CCS - Rest File Server - Command Line</name>
     
     <properties>
-        <graalvm.version>20.3.0</graalvm.version>
+        <graalvm.version>21.0.0.2</graalvm.version>
     </properties>
     
     <distributionManagement>
@@ -107,7 +107,7 @@
                         </executions>
                         <configuration>
                             <skip>false</skip>
-                            <imageName>rfs</imageName>
+                            <imageName>cfs</imageName>
                             <mainClass>org.lsst.ccs.rest.file.server.cli.TopLevelCommand</mainClass>
                             <buildArgs>
                                 --report-unsupported-elements-at-runtime 

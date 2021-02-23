@@ -18,7 +18,7 @@ import picocli.CommandLine.Option;
  *
  * @author tonyj
  */
-@Command(name = "rfs", usageHelpAutoWidth = true, subcommands = {
+@Command(name = "cfs", usageHelpAutoWidth = true, subcommands = {
     CatCommand.class,
     EditCommand.class,
     ListCommand.class, 
