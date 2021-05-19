@@ -20,6 +20,7 @@ import java.util.logging.Logger;
 import javax.ws.rs.client.ClientResponseContext;
 import org.apache.commons.jcs3.JCS;
 import org.apache.commons.jcs3.access.CacheAccess;
+import org.apache.commons.jcs3.auxiliary.disk.indexed.IndexedDiskCache;
 import org.apache.commons.jcs3.engine.control.CompositeCacheManager;
 import org.apache.commons.jcs3.log.LogManager;
 import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
@@ -85,7 +86,6 @@ class Cache implements Closeable {
         }
         CompositeCacheManager ccm = CompositeCacheManager.getUnconfiguredInstance();
         ccm.configure(props);
-
         map = JCS.getInstance("default");
     }
 
@@ -99,8 +99,20 @@ class Cache implements Closeable {
 
     @Override
     public void close() throws IOException {
-        lock.close();
-        lock.channel().close();
+        // This is super ugly, but otherwise we always get a SEVERE error because
+        // the cache manager appears to shutdown the auxilliary disk cache once when it shuts
+        // down the memory cache, and then again when it shuts down the auxilliary caches. This 
+        // looks like a bug, so here we turn off logging to avoid confusing messsages.
+        
+        Logger logger = Logger.getLogger(IndexedDiskCache.class.getName());
+        logger.setLevel(Level.OFF);
+
+        if (lock != null) {
+            lock.close();
+            lock.channel().close();
+            lock = null;
+        }
+
     }
 
     public static class CacheEntry implements Serializable {
