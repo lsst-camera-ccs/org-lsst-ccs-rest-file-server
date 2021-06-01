@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.UserDefinedFileAttributeView;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Set;
 
@@ -83,8 +84,12 @@ public class VersionedFile {
         return path.resolve("latest");
     }
 
-    int addVersion(byte[] content) throws IOException {
+    int addVersion(byte[] content, boolean onlyIfChanged) throws IOException {
         int version = getLatestVersion() + 1;
+        if (version > 1 && onlyIfChanged) {
+            byte[] previousData = Files.readAllBytes(getLatest());
+            if (Arrays.equals(previousData, content)) return getLatestVersion();
+        }
         Path file = path.resolve(String.valueOf(version));
         Files.write(file, content);
         Files.setPosixFilePermissions(file, READ_ONLY);

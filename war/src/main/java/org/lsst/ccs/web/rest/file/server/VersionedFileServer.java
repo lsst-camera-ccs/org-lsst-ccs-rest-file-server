@@ -190,11 +190,11 @@ public class VersionedFileServer {
         java.nio.file.Path path = baseDir.resolve(filePath);
         if (VersionedFile.isVersionedFile(path)) {
             VersionedFile vf = new VersionedFile(path);
-            int newVersion = vf.addVersion(content);
+            int newVersion = vf.addVersion(content, true);
             return Collections.singletonMap("version", newVersion);
         } else {
             VersionedFile vf = VersionedFile.create(path, content);
-            return Collections.singletonMap("version", 1);
+            return Collections.singletonMap("version", vf.getLatestVersion());
         }
     }
 

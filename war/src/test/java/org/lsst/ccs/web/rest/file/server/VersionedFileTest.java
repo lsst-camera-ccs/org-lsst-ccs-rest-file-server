@@ -54,7 +54,7 @@ public class VersionedFileTest {
         assertEquals(1, vf.getLatestVersion());
         Path file = vf.getDefault();
         assertEquals(content, new String(Files.readAllBytes(file)));
-        int nv = vf.addVersion(content2.getBytes());
+        int nv = vf.addVersion(content2.getBytes(), false);
         assertEquals(2, nv);
         assertEquals(1, vf.getDefaultVersion());
         assertEquals(2, vf.getLatestVersion());
@@ -77,7 +77,8 @@ public class VersionedFileTest {
         assertEquals("-" + content, generateUnifiedDiff.get(3));
         assertEquals("+" + content2, generateUnifiedDiff.get(4));
 
-        //vf.delete();
+        int nv2 = vf.addVersion(content2.getBytes(), true);
+        assertEquals(2, nv2);
     }
 
     @Test
