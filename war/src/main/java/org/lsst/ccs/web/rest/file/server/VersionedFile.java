@@ -2,6 +2,8 @@ package org.lsst.ccs.web.rest.file.server;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -10,8 +12,13 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.UserDefinedFileAttributeView;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
+import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
  * Encapsulation of a versioned file. The current implementation stores the file
@@ -26,6 +33,10 @@ public class VersionedFile {
     private static final String LATEST = "latest";
     private static final String DEFAULT = "default";
     private static final String USER_VERSIONED_FILE = "user.isVersionedFile";
+    private static final String META_FILE_NAME = "version-meta.properties";
+    private static final String HIDDEN_VERSIONS_PROPERTY = "hidden-versions";
+
+    private final Set<Integer> hiddenVersions;
     private final Path path;
 
     VersionedFile(Path path) throws IOException {
@@ -33,22 +44,42 @@ public class VersionedFile {
         if (!isVersionedFile(path)) {
             throw new IOException("Not a versioned file: " + path);
         }
+        // Should we cache this info, or read it each time we need it?
+        hiddenVersions = loadMetaFile(path);
     }
 
     static boolean isVersionedFile(Path path) throws IOException {
         if (!Files.isDirectory(path)) {
             return false;
         }
+        boolean hasMetaFile = Files.exists(path.resolve(META_FILE_NAME));
         UserDefinedFileAttributeView view = Files.getFileAttributeView(path, UserDefinedFileAttributeView.class);
-        if (!view.list().contains(USER_VERSIONED_FILE)) {
+        // Relying on file attributes is a bad idea, since they are not maintaied by tools like rsync
+        // So accept either file attribute or existance of meta-file 
+        if (!view.list().contains(USER_VERSIONED_FILE) && !hasMetaFile) {
             return false;
         }
-
-        return Files.isSymbolicLink(path.resolve(LATEST)) && Files.isSymbolicLink(path.resolve(DEFAULT));
+        if (!Files.isSymbolicLink(path.resolve(LATEST)) || !Files.isSymbolicLink(path.resolve(DEFAULT))) {
+            return false;
+        }
+        // Old files did not have the meta-file, so create it here if missing
+        if (!hasMetaFile) {
+            createMetaFile(path);
+        }
+        return true;
     }
 
     int[] getVersions() throws IOException {
-        return Files.list(path).filter(p -> !Files.isSymbolicLink(p)).mapToInt(p -> Integer.parseInt(p.getFileName().toString())).sorted().toArray();
+        return getVersions(true);
+    }
+    
+    int[] getVersions(boolean includeHidden) throws IOException {
+        return Files.list(path)
+                .filter(p -> !Files.isSymbolicLink(p) && !p.endsWith(META_FILE_NAME))
+                .mapToInt(p -> Integer.parseInt(p.getFileName().toString()))
+                .filter(v -> includeHidden || !isHidden(v))
+                .sorted()
+                .toArray();
     }
 
     int getLatestVersion() throws IOException {
@@ -77,18 +108,42 @@ public class VersionedFile {
     }
 
     Path getDefault() {
-        return path.resolve("default");
+        return path.resolve(DEFAULT);
     }
 
     Path getLatest() {
-        return path.resolve("latest");
+        return path.resolve(LATEST);
+    }
+
+    boolean isHidden(int version) {
+        return hiddenVersions.contains(version);
+    }
+
+    void setHidden(int version, boolean isHidden) throws IOException {
+        boolean modified;
+        if (isHidden) {
+            if (version == getLatestVersion()) {
+                throw new RuntimeException("Latest version cannot be hidden");
+            }
+            if (version == getDefaultVersion()) {
+                throw new RuntimeException("Default version cannot be hidden");
+            }
+            modified = hiddenVersions.add(version);
+        } else {
+            modified = hiddenVersions.remove(version);
+        }
+        if (modified) {
+            updateMetaFile(path, hiddenVersions);
+        }
     }
 
     int addVersion(byte[] content, boolean onlyIfChanged) throws IOException {
         int version = getLatestVersion() + 1;
         if (version > 1 && onlyIfChanged) {
             byte[] previousData = Files.readAllBytes(getLatest());
-            if (Arrays.equals(previousData, content)) return getLatestVersion();
+            if (Arrays.equals(previousData, content)) {
+                return getLatestVersion();
+            }
         }
         Path file = path.resolve(String.valueOf(version));
         Files.write(file, content);
@@ -110,7 +165,33 @@ public class VersionedFile {
         Files.setPosixFilePermissions(file, READ_ONLY);
         Files.createSymbolicLink(dir.resolve(LATEST), dir.relativize(file));
         Files.createSymbolicLink(dir.resolve(DEFAULT), dir.relativize(file));
+        createMetaFile(dir);
         return new VersionedFile(dir);
+    }
+
+    private static void createMetaFile(Path dir) throws IOException {
+        updateMetaFile(dir, Collections.<Integer>emptySet());
+    }
+
+    private static void updateMetaFile(Path dir, Set<Integer> hiddenVersions) throws IOException {
+        Properties props = new Properties();
+        props.setProperty(HIDDEN_VERSIONS_PROPERTY, hiddenVersions.stream().map(String::valueOf).collect(Collectors.joining(",")));
+        try (OutputStream out = Files.newOutputStream(dir.resolve(META_FILE_NAME))) {
+            props.store(out, "Updated at " + new Date());
+        }
+    }
+
+    static Set<Integer> loadMetaFile(Path dir) throws IOException {
+        try (final InputStream in = Files.newInputStream(dir.resolve(META_FILE_NAME))) {
+            Properties meta = new Properties();
+            meta.load(in);
+            String hiddenVersionsString = meta.getProperty(HIDDEN_VERSIONS_PROPERTY, "");
+            if (hiddenVersionsString.isEmpty()) {
+                return new TreeSet<>();
+            } else {
+                return Arrays.stream(hiddenVersionsString.trim().split("\\s*,\\s*")).map(s -> Integer.valueOf(s)).collect(Collectors.toCollection(TreeSet::new));
+            }
+        }
     }
 
     static VersionedFile convert(Path unversionedFile) throws IOException {
@@ -129,6 +210,7 @@ public class VersionedFile {
         Files.setPosixFilePermissions(newFileName, READ_ONLY);
         Files.createSymbolicLink(dir.resolve(LATEST), dir.relativize(newFileName));
         Files.createSymbolicLink(dir.resolve(DEFAULT), dir.relativize(newFileName));
+        createMetaFile(dir);
         Files.move(dir, unversionedFile);
         return new VersionedFile(unversionedFile);
     }

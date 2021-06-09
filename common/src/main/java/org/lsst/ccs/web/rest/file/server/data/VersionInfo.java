@@ -44,6 +44,7 @@ public class VersionInfo implements Serializable {
     
     public static class Version extends RestFileInfo {
         private int version;
+        private boolean hidden = false;
         
         public Version() {
            super(); 
@@ -59,6 +60,14 @@ public class VersionInfo implements Serializable {
 
         public void setVersion(int version) {
             this.version = version;
+        }
+
+        public boolean isHidden() {
+            return hidden;
+        }
+
+        public void setHidden(boolean hidden) {
+            this.hidden = hidden;
         }
     }
 

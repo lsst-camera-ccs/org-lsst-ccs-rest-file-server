@@ -34,6 +34,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.jvnet.hk2.annotations.Optional;
 import org.lsst.ccs.web.rest.file.server.data.VersionInfo;
 import org.lsst.ccs.web.rest.file.server.data.VersionInfo.Version;
+import org.lsst.ccs.web.rest.file.server.jwt.JWTTokenNeeded;
 
 /**
  * Rest interface with functions specific to versioned files
@@ -76,6 +77,7 @@ public class VersionedFileServer {
             BasicFileAttributes fileAttributes = Files.getFileAttributeView(child, BasicFileAttributeView.class).readAttributes();
             Version info = new Version(child, fileAttributes);
             info.setVersion(version);
+            info.setHidden(cf.isHidden(version));
             fileVersions.add(info);
         }
         result.setVersions(fileVersions);
@@ -175,6 +177,7 @@ public class VersionedFileServer {
 
     @PUT
     @Path("set/{filePath: .*}")
+    @JWTTokenNeeded
     @Consumes(MediaType.APPLICATION_JSON)
     public Object set(@PathParam("filePath") String filePath, int defaultVersion, @Context Request request) throws IOException {
         java.nio.file.Path path = baseDir.resolve(filePath);
@@ -183,8 +186,31 @@ public class VersionedFileServer {
         return info(filePath, request);
     }
 
+    @PUT
+    @Path("hide/{filePath: .*}")
+    @JWTTokenNeeded
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Object hide(@PathParam("filePath") String filePath, int version, @Context Request request) throws IOException {
+        java.nio.file.Path path = baseDir.resolve(filePath);
+        VersionedFile vf = new VersionedFile(path);
+        vf.setHidden(version, true);
+        return info(filePath, request);
+    }
+
+    @PUT
+    @Path("unhide/{filePath: .*}")
+    @JWTTokenNeeded
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Object unhide(@PathParam("filePath") String filePath, int version, @Context Request request) throws IOException {
+        java.nio.file.Path path = baseDir.resolve(filePath);
+        VersionedFile vf = new VersionedFile(path);
+        vf.setHidden(version, false);
+        return info(filePath, request);
+    }
+    
     @POST
     @Path("upload/{filePath: .*}")
+    @JWTTokenNeeded
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
     public Object upload(@PathParam("filePath") String filePath, byte[] content) throws IOException {
         java.nio.file.Path path = baseDir.resolve(filePath);
@@ -199,6 +225,7 @@ public class VersionedFileServer {
     }
 
     @DELETE
+    @JWTTokenNeeded
     @Path("deleteFile/{filePath: .*}")
     public Response deleteFile(@PathParam("filePath") String filePath) throws IOException {
         java.nio.file.Path path = baseDir.resolve(filePath);

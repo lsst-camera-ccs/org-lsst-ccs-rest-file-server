@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
+import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,12 +53,14 @@ public class VersionedFileTest {
         VersionedFile vf = VersionedFile.create(tempDir.resolve("test.file"), content.getBytes());
         assertEquals(1, vf.getDefaultVersion());
         assertEquals(1, vf.getLatestVersion());
+        assertFalse(vf.isHidden(1));
         Path file = vf.getDefault();
         assertEquals(content, new String(Files.readAllBytes(file)));
         int nv = vf.addVersion(content2.getBytes(), false);
         assertEquals(2, nv);
         assertEquals(1, vf.getDefaultVersion());
         assertEquals(2, vf.getLatestVersion());
+        assertFalse(vf.isHidden(2));
         int[] versions = vf.getVersions();
         assertEquals(2, versions.length);
         vf.setDefaultVersion(2);
@@ -79,6 +82,30 @@ public class VersionedFileTest {
 
         int nv2 = vf.addVersion(content2.getBytes(), true);
         assertEquals(2, nv2);
+    }
+    
+    @Test void testHiddenVersions() throws IOException {
+        String content = "Just Testing";
+        VersionedFile vf = VersionedFile.create(tempDir.resolve("test2.file"), content.getBytes());
+        int nv1 = vf.addVersion(content.getBytes(), false);
+        int nv2 = vf.addVersion(content.getBytes(), false);
+        vf.setHidden(nv1, true);
+        assertTrue(vf.isHidden(nv1));
+        Assert.assertArrayEquals(new int[]{vf.getDefaultVersion(), nv2}, vf.getVersions(false));
+        vf.setHidden(nv1, false);
+        assertFalse(vf.isHidden(nv1));       
+        try {
+            vf.setHidden(nv2, true);
+            fail("Should not get here");
+        } catch (RuntimeException x) {
+            // expected
+        }
+        try {
+            vf.setHidden(vf.getDefaultVersion(), true);
+            fail("Should not get here");
+        } catch (RuntimeException x) {
+            // expected
+        }
     }
 
     @Test

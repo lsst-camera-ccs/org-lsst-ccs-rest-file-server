@@ -27,7 +27,7 @@ public class TestServer {
     
     public TestServer(int port) throws URISyntaxException, IOException {
         tempDir = Files.createTempDirectory("RestServer");
-        MyConfiguration rc = new MyConfiguration();
+        MyConfiguration rc = new MyConfiguration(true);
         rc.register(new AbstractBinder() {
             @Override
             protected void configure() {
