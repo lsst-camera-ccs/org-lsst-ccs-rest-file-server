@@ -10,6 +10,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -69,7 +70,7 @@ public class FileServer {
     @Path("list/{filePath: .*}")
     public Response list(@PathParam("filePath") String filePath, @Context Request request) throws IOException {
         java.nio.file.Path file = baseDir.resolve(filePath);
-        RestFileInfo fileProperties = getFileAtrributes(file, filePath);
+        RestFileInfo fileProperties;
         boolean isDirectory = Files.isDirectory(file);
         if (isDirectory) {
             List<java.nio.file.Path> listFiles = Files.list(file).collect(Collectors.toList());
@@ -80,8 +81,11 @@ public class FileServer {
                 children.add(childProperties);
             }
             children.sort((RestFileInfo o1, RestFileInfo o2) -> o1.getName().compareTo(o2.getName()));
-            fileProperties.setChildren(children);
+            fileProperties = getFileAtrributes(file, filePath, children);
+        } else {
+            fileProperties = getFileAtrributes(file, filePath, null);
         }
+
         EntityTag eTag = new EntityTag(ETagHelper.computeEtag(fileProperties));
         ResponseBuilder builder = request.evaluatePreconditions(eTag);
         if (builder != null) {
@@ -96,7 +100,7 @@ public class FileServer {
     @Path("info/{filePath: .*}")
     public Response info(@PathParam("filePath") String filePath, @Context Request request) throws IOException {
         java.nio.file.Path file = baseDir.resolve(filePath);
-        final RestFileInfo fileAtrributes = getFileAtrributes(file, filePath);
+        final RestFileInfo fileAtrributes = getFileAtrributes(file, filePath, null);
         EntityTag eTag = new EntityTag(ETagHelper.computeEtag(fileAtrributes));
         ResponseBuilder builder = request.evaluatePreconditions(eTag);
         if (builder != null) {
@@ -107,12 +111,12 @@ public class FileServer {
                 .build();
     }
 
-    private RestFileInfo getFileAtrributes(java.nio.file.Path file, String filePath) throws IOException, NoSuchFileException {
+    private RestFileInfo getFileAtrributes(java.nio.file.Path file, String filePath, List<RestFileInfo> children) throws IOException, NoSuchFileException {
         BasicFileAttributes fileAttributes = Files.getFileAttributeView(file, BasicFileAttributeView.class).readAttributes();
         if (fileAttributes == null) {
             throw new NoSuchFileException(filePath);
         }
-        return new RestFileInfo(file, fileAttributes, VersionedFile.isVersionedFile(file));
+        return new RestFileInfo(file, fileAttributes, VersionedFile.isVersionedFile(file), children);
     }
 
     @GET

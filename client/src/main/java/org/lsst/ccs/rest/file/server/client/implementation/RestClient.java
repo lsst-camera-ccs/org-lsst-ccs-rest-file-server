@@ -187,7 +187,6 @@ class RestClient implements Closeable {
         if (info.isVersionedFile()) {
             VersionInfo vinfo = getVersionedRestFileInfo(path);
             RestFileInfo latest = vinfo.getVersions().get(vinfo.getDefault() - 1);
-            latest.setVersionedFile(true);
             return new RestFileAttributes(latest);
         } else {
             return new RestFileAttributes(info);

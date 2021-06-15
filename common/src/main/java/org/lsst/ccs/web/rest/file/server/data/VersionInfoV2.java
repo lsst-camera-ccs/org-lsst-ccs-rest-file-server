@@ -1,44 +1,34 @@
 package org.lsst.ccs.web.rest.file.server.data;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * Information returned by the rest-file-server for a versioned file
- *
  * @author tonyj
  */
-public class VersionInfo implements Serializable {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class VersionInfoV2 implements Serializable {
 
     private final int defaultVersion;
     private final int latestVersion;
-    private final List<VersionInfo.Version> versions;
+    private final List<VersionInfoV2.Version> versions;
 
     @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
-    public VersionInfo(@JsonProperty("default") int defaultVersion, @JsonProperty("latest") int latestVersion, @JsonProperty("versions")  List<VersionInfo.Version> versions) {
+    public VersionInfoV2(@JsonProperty("defaultVersion") int defaultVersion, @JsonProperty("latestVersopm") int latestVersion, @JsonProperty("versions") List<Version> versions) {
         this.defaultVersion = defaultVersion;
         this.latestVersion = latestVersion;
         this.versions = versions;
     }
-
-    VersionInfo(VersionInfoV2 v2) {
-        defaultVersion = v2.getDefault();
-        latestVersion = v2.getLatest();
-        List<Version> oldVersions = new ArrayList<>();
-        for (VersionInfoV2.Version v : v2.getVersions()) {
-            oldVersions.add(new Version(v));
-        }
-        this.versions = oldVersions;
-    }
-
+    
     public int getDefault() {
         return defaultVersion;
     }
@@ -51,10 +41,19 @@ public class VersionInfo implements Serializable {
         return versions;
     }
 
+    public Object downgrade(Integer protocolVersion) {
+        if (protocolVersion == null || protocolVersion<2) {
+            return new VersionInfo(this);
+        } else {
+            return this;
+        }
+    }
+    
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Version extends RestFileInfo {
-
         private final int version;
-
+        private final boolean hidden;
+                
         @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
         public Version(
             @JsonProperty("lastModified") long lastModified, 
@@ -70,28 +69,25 @@ public class VersionInfo implements Serializable {
             @JsonProperty("symbolicLink") boolean symbolicLink, 
             @JsonProperty("versionedFile") boolean versionedFile, 
             @JsonProperty("children") List<RestFileInfo> children,
-            @JsonProperty("version") int version) {
+            @JsonProperty("version") int version, 
+            @JsonProperty("hidden") boolean hidden) {
             super(lastModified, creationTime, lastAccessTime, size, mimeType, name, fileKey, directory, other, regularFile, symbolicLink, versionedFile, children);
             this.version = version;
+            this.hidden = hidden;
         }
         
-        public Version(Path file, BasicFileAttributes fileAttributes, int version) throws IOException {
+        public Version(Path file, BasicFileAttributes fileAttributes, int version, boolean hidden) throws IOException {
             super(file, fileAttributes, false);
             this.version = version;
-        }
-
-        public Version(Version other) {
-            super(other);
-            this.version = other.version;
-        }
-        
-        public Version(VersionInfoV2.Version v2) {
-            super(v2);
-            this.version = v2.getVersion();
+            this.hidden = hidden;
         }
 
         public int getVersion() {
             return version;
+        }
+
+        public boolean isHidden() {
+            return hidden;
         }
     }
 
@@ -99,6 +95,7 @@ public class VersionInfo implements Serializable {
     public String toString() {
         return "VersionInfo{" + "defaultVersion=" + defaultVersion + ", latestVersion=" + latestVersion + ", versions=" + versions + '}';
     }
+    
 
     public Map<String, Object> toMap() {
         Map<String, Object> result = new HashMap<>();
@@ -106,5 +103,5 @@ public class VersionInfo implements Serializable {
         result.put("defaultVersion", getDefault());
         return result;
     }
-
+        
 }

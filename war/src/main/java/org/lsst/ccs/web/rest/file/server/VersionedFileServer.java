@@ -19,6 +19,7 @@ import javax.servlet.ServletContext;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -32,8 +33,8 @@ import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import org.jvnet.hk2.annotations.Optional;
-import org.lsst.ccs.web.rest.file.server.data.VersionInfo;
-import org.lsst.ccs.web.rest.file.server.data.VersionInfo.Version;
+import static org.lsst.ccs.web.rest.file.server.data.Constants.PROTOCOL_VERSION_HEADER;
+import org.lsst.ccs.web.rest.file.server.data.VersionInfoV2;
 import org.lsst.ccs.web.rest.file.server.jwt.JWTTokenNeeded;
 
 /**
@@ -64,29 +65,25 @@ public class VersionedFileServer {
 
     @GET
     @Path("info/{filePath: .*}")
-    public Response info(@PathParam("filePath") String filePath, @Context Request request) throws IOException {
+    public Response info(@PathParam("filePath") String filePath, @Context Request request, @HeaderParam(PROTOCOL_VERSION_HEADER) Integer protocolVersion) throws IOException {
+        System.err.println("PROTOCOL_VERSION="+protocolVersion);
         java.nio.file.Path path = baseDir.resolve(filePath);
         VersionedFile cf = new VersionedFile(path);
-        VersionInfo result = new VersionInfo();
-        result.setDefault(cf.getDefaultVersion());
-        result.setLatest(cf.getLatestVersion());
-        List<Version> fileVersions = new ArrayList<>();
+        List<VersionInfoV2.Version> fileVersions = new ArrayList<>();
         int[] versions = cf.getVersions();
         for (int version : versions) {
             java.nio.file.Path child = cf.getPathForVersion(version);
             BasicFileAttributes fileAttributes = Files.getFileAttributeView(child, BasicFileAttributeView.class).readAttributes();
-            Version info = new Version(child, fileAttributes);
-            info.setVersion(version);
-            info.setHidden(cf.isHidden(version));
+            VersionInfoV2.Version info = new VersionInfoV2.Version(child, fileAttributes, version, cf.isHidden(version));
             fileVersions.add(info);
         }
-        result.setVersions(fileVersions);
+        VersionInfoV2 result = new VersionInfoV2(cf.getDefaultVersion(), cf.getLatestVersion(), fileVersions);
         EntityTag eTag = new EntityTag(ETagHelper.computeEtag(result));
         Response.ResponseBuilder builder = request.evaluatePreconditions(eTag);
         if (builder != null) {
             return builder.tag(eTag).build();
         }
-        return Response.ok(result)
+        return Response.ok(result.downgrade(protocolVersion))
                 .tag(eTag)
                 .build();
     }
@@ -179,33 +176,33 @@ public class VersionedFileServer {
     @Path("set/{filePath: .*}")
     @JWTTokenNeeded
     @Consumes(MediaType.APPLICATION_JSON)
-    public Object set(@PathParam("filePath") String filePath, int defaultVersion, @Context Request request) throws IOException {
+    public Object set(@PathParam("filePath") String filePath, int defaultVersion, @Context Request request, @HeaderParam(PROTOCOL_VERSION_HEADER) Integer protocolVersion) throws IOException {
         java.nio.file.Path path = baseDir.resolve(filePath);
         VersionedFile vf = new VersionedFile(path);
         vf.setDefaultVersion(defaultVersion);
-        return info(filePath, request);
+        return info(filePath, request, protocolVersion);
     }
 
     @PUT
     @Path("hide/{filePath: .*}")
     @JWTTokenNeeded
     @Consumes(MediaType.APPLICATION_JSON)
-    public Object hide(@PathParam("filePath") String filePath, int version, @Context Request request) throws IOException {
+    public Object hide(@PathParam("filePath") String filePath, int version, @Context Request request, @HeaderParam(PROTOCOL_VERSION_HEADER) Integer protocolVersion) throws IOException {
         java.nio.file.Path path = baseDir.resolve(filePath);
         VersionedFile vf = new VersionedFile(path);
         vf.setHidden(version, true);
-        return info(filePath, request);
+        return info(filePath, request, protocolVersion);
     }
 
     @PUT
     @Path("unhide/{filePath: .*}")
     @JWTTokenNeeded
     @Consumes(MediaType.APPLICATION_JSON)
-    public Object unhide(@PathParam("filePath") String filePath, int version, @Context Request request) throws IOException {
+    public Object unhide(@PathParam("filePath") String filePath, int version, @Context Request request, @HeaderParam(PROTOCOL_VERSION_HEADER) Integer protocolVersion) throws IOException {
         java.nio.file.Path path = baseDir.resolve(filePath);
         VersionedFile vf = new VersionedFile(path);
         vf.setHidden(version, false);
-        return info(filePath, request);
+        return info(filePath, request, protocolVersion);
     }
     
     @POST

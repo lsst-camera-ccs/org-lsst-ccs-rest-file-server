@@ -60,6 +60,7 @@ class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
         } else {
             cache = null;
         }
+        client.register(new AddProtcolVersionRequestFilter());
         restClient = new RestClient(client, restURI);
     }
 

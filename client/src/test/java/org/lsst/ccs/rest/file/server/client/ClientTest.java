@@ -189,11 +189,11 @@ public class ClientTest {
         assertFalse(basicAttributes.isDirectory());
         VersionedFileAttributes versionAttributes = Files.readAttributes(pathInRestServer, VersionedFileAttributes.class);
         assertTrue(versionAttributes.getDefaultVersion() == 1);
-
+        
         VersionedFileAttributeView versionView = Files.getFileAttributeView(pathInRestServer, VersionedFileAttributeView.class);
         assertTrue(versionView.readAttributes().getDefaultVersion() == 1);
         assertTrue(versionView.readAttributes().getLatestVersion() == 1);
-
+        
         final String newContent = "This is some new content";
         try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer)) {
             writer.append(newContent);
