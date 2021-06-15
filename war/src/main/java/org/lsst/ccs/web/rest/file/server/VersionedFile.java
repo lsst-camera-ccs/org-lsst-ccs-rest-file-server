@@ -72,11 +72,13 @@ public class VersionedFile {
     int[] getVersions() throws IOException {
         return getVersions(true);
     }
-    
+
     int[] getVersions(boolean includeHidden) throws IOException {
         return Files.list(path)
-                .filter(p -> !Files.isSymbolicLink(p) && !p.endsWith(META_FILE_NAME))
-                .mapToInt(p -> Integer.parseInt(p.getFileName().toString()))
+                .filter(p -> !Files.isSymbolicLink(p))
+                .map(p -> p.getFileName().toString())
+                .filter(s -> s.matches(("\\d+")))
+                .mapToInt(s -> Integer.parseInt(s))
                 .filter(v -> includeHidden || !isHidden(v))
                 .sorted()
                 .toArray();
