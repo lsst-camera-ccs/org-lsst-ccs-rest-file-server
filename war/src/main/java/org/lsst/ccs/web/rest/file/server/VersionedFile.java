@@ -48,7 +48,13 @@ public class VersionedFile {
     }
 
     int[] getVersions() throws IOException {
-        return Files.list(path).filter(p -> !Files.isSymbolicLink(p)).mapToInt(p -> Integer.parseInt(p.getFileName().toString())).sorted().toArray();
+        return Files.list(path)
+                .filter(p -> !Files.isSymbolicLink(p))
+                .map(p -> p.getFileName().toString())
+                .filter(s -> s.matches(("\\d+")))
+                .mapToInt(s -> Integer.parseInt(s))
+                .sorted()
+                .toArray();
     }
 
     int getLatestVersion() throws IOException {
