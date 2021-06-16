@@ -61,6 +61,10 @@ class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
             cache = null;
         }
         client.register(new AddProtcolVersionRequestFilter());
+        Object jwt = env.get(RestFileSystemOptions.AUTH_TOKEN);
+        if (jwt != null) {
+            client.register(new AddJWTTokenRequestFilter(jwt.toString()));
+        }
         restClient = new RestClient(client, restURI);
     }
 

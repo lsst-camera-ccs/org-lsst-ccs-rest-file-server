@@ -10,8 +10,8 @@ import static org.lsst.ccs.web.rest.file.server.data.Constants.PROTOCOL_VERSION_
  * @author tonyj
  */
 public class AddProtcolVersionRequestFilter implements ClientRequestFilter {
-    public static final String FILTER_HEADER_VALUE = "2";
-    public static final String FILTER_HEADER_KEY = PROTOCOL_VERSION_HEADER;
+    private static final String FILTER_HEADER_VALUE = "2";
+    private static final String FILTER_HEADER_KEY = PROTOCOL_VERSION_HEADER;
 
     @Override
     public void filter(ClientRequestContext requestContext) throws IOException {

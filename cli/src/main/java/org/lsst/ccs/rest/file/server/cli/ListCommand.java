@@ -31,6 +31,9 @@ public class ListCommand implements Callable<Void> {
     @Option(names = {"-l", "--long"}, description = "Detailed listing")
     private boolean showLong;
 
+    @Option(names = {"-a", "--all"}, description = "Include hidden files")
+    private boolean showAll;
+
     @Option(names = {"-h", "--human-readable"}, description = "with -l, print sizes in human readable format (e.g., 1K 234M 2G)")
     private boolean humanReadable;
 
@@ -76,6 +79,9 @@ public class ListCommand implements Callable<Void> {
             } else if (isVersionedFile) {
                 VersionedFileAttributes vfa = Files.readAttributes(restPath, VersionedFileAttributes.class);
                 for (int version : vfa.getVersions()) {
+                    if (!showAll && vfa.isHidden(version)) {
+                        continue;
+                    }
                     BasicFileAttributes bfa = vfa.getAttributes(version);
                     String color = version == vfa.getDefaultVersion() ? "blue" : version == vfa.getLatestVersion() ? "green" : "white";
                     List<String> attributes = new ArrayList<>();
@@ -85,9 +91,13 @@ public class ListCommand implements Callable<Void> {
                     if (version == vfa.getLatestVersion()) {
                         attributes.add("latest");
                     }
+                    if (vfa.isHidden(version)) {
+                        attributes.add("hidden");
+                    }
                     String info = String.join(",", attributes);
+                    String comment = vfa.getComment(version);
                     if (showLong || si) {
-                        String line = String.format("@|%s %10s %s %3d %s|@", color, fsf.format(bfa.size()), fdf.format(bfa.lastModifiedTime()), version, info);
+                        String line = String.format("@|%s %10s %s %3d %s %s|@", color, fsf.format(bfa.size()), fdf.format(bfa.lastModifiedTime()), version, info, comment);
                         System.out.println(ansi.string(line));
                     } else {
                         String line = String.format("@|%s %3d %s|@", color, version, info);

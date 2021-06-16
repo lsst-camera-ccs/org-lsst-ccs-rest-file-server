@@ -23,7 +23,7 @@ public class VersionInfoV2 implements Serializable {
     private final List<VersionInfoV2.Version> versions;
 
     @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
-    public VersionInfoV2(@JsonProperty("defaultVersion") int defaultVersion, @JsonProperty("latestVersopm") int latestVersion, @JsonProperty("versions") List<Version> versions) {
+    public VersionInfoV2(@JsonProperty("default") int defaultVersion, @JsonProperty("latest") int latestVersion, @JsonProperty("versions") List<Version> versions) {
         this.defaultVersion = defaultVersion;
         this.latestVersion = latestVersion;
         this.versions = versions;
@@ -41,7 +41,7 @@ public class VersionInfoV2 implements Serializable {
         return versions;
     }
 
-    public Object downgrade(Integer protocolVersion) {
+    public Serializable downgrade(Integer protocolVersion) {
         if (protocolVersion == null || protocolVersion<2) {
             return new VersionInfo(this);
         } else {
@@ -53,6 +53,7 @@ public class VersionInfoV2 implements Serializable {
     public static class Version extends RestFileInfo {
         private final int version;
         private final boolean hidden;
+        private final String comment;
                 
         @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
         public Version(
@@ -70,16 +71,20 @@ public class VersionInfoV2 implements Serializable {
             @JsonProperty("versionedFile") boolean versionedFile, 
             @JsonProperty("children") List<RestFileInfo> children,
             @JsonProperty("version") int version, 
-            @JsonProperty("hidden") boolean hidden) {
+            @JsonProperty("hidden") boolean hidden,
+            @JsonProperty("comment") String comment) {
+
             super(lastModified, creationTime, lastAccessTime, size, mimeType, name, fileKey, directory, other, regularFile, symbolicLink, versionedFile, children);
             this.version = version;
             this.hidden = hidden;
+            this.comment = comment == null ? "" : comment;
         }
         
-        public Version(Path file, BasicFileAttributes fileAttributes, int version, boolean hidden) throws IOException {
+        public Version(Path file, BasicFileAttributes fileAttributes, int version, boolean hidden, String comment) throws IOException {
             super(file, fileAttributes, false);
             this.version = version;
             this.hidden = hidden;
+            this.comment = comment;
         }
 
         public int getVersion() {
@@ -88,6 +93,10 @@ public class VersionInfoV2 implements Serializable {
 
         public boolean isHidden() {
             return hidden;
+        }
+
+        public String getComment() {
+            return comment;
         }
     }
 

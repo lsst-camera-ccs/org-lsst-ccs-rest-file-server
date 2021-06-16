@@ -1,5 +1,8 @@
 [
   {
+  "name":"java.util.Date"
+  },
+  {
   "name":"[B"
   },
   {
@@ -19,9 +22,6 @@
   },
   {
   "name":"java.lang.String"
-  },
-  {
-  "name":"java.util.Date"
   },
   {
   "name":"java.net.URI"

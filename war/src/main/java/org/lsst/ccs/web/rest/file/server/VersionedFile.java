@@ -12,9 +12,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.UserDefinedFileAttributeView;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
@@ -35,8 +33,10 @@ public class VersionedFile {
     private static final String USER_VERSIONED_FILE = "user.isVersionedFile";
     private static final String META_FILE_NAME = "version-meta.properties";
     private static final String HIDDEN_VERSIONS_PROPERTY = "hidden-versions";
+    private static final String COMMENT_PROPERTY = "comment.";
 
-    private final Set<Integer> hiddenVersions;
+
+    private final Properties meta;
     private final Path path;
 
     VersionedFile(Path path) throws IOException {
@@ -45,7 +45,7 @@ public class VersionedFile {
             throw new IOException("Not a versioned file: " + path);
         }
         // Should we cache this info, or read it each time we need it?
-        hiddenVersions = loadMetaFile(path);
+        meta = loadMetaFile(path);
     }
 
     static boolean isVersionedFile(Path path) throws IOException {
@@ -117,11 +117,22 @@ public class VersionedFile {
         return path.resolve(LATEST);
     }
 
-    boolean isHidden(int version) {
-        return hiddenVersions.contains(version);
+    private Set<Integer> getHiddenVersions() {
+        String hiddenVersionsString = meta.getProperty(HIDDEN_VERSIONS_PROPERTY, "");
+        if (hiddenVersionsString.isEmpty()) {
+            return new TreeSet<>();
+        } else {
+            return Arrays.stream(hiddenVersionsString.trim().split("\\s*,\\s*")).map(s -> Integer.valueOf(s)).collect(Collectors.toCollection(TreeSet::new));
+        }
     }
 
+    boolean isHidden(int version) {
+        return getHiddenVersions().contains(version);
+    }
+    
+
     void setHidden(int version, boolean isHidden) throws IOException {
+        Set<Integer> hiddenVersions = getHiddenVersions();
         boolean modified;
         if (isHidden) {
             if (version == getLatestVersion()) {
@@ -135,10 +146,20 @@ public class VersionedFile {
             modified = hiddenVersions.remove(version);
         }
         if (modified) {
-            updateMetaFile(path, hiddenVersions);
+            meta.setProperty(HIDDEN_VERSIONS_PROPERTY, hiddenVersions.stream().map(String::valueOf).collect(Collectors.joining(",")));
+            updateMetaFile(path, meta);
         }
     }
+    
+    String getComment(int version) {
+        return meta.getProperty(COMMENT_PROPERTY+version, "");
+    }
+    
 
+    void setComment(int version, String comment) throws IOException {
+        meta.setProperty(COMMENT_PROPERTY+version, comment);
+        updateMetaFile(path, meta);
+    }
     int addVersion(byte[] content, boolean onlyIfChanged) throws IOException {
         int version = getLatestVersion() + 1;
         if (version > 1 && onlyIfChanged) {
@@ -172,27 +193,21 @@ public class VersionedFile {
     }
 
     private static void createMetaFile(Path dir) throws IOException {
-        updateMetaFile(dir, Collections.<Integer>emptySet());
+        Properties meta = new Properties();
+        updateMetaFile(dir, meta);
     }
 
-    private static void updateMetaFile(Path dir, Set<Integer> hiddenVersions) throws IOException {
-        Properties props = new Properties();
-        props.setProperty(HIDDEN_VERSIONS_PROPERTY, hiddenVersions.stream().map(String::valueOf).collect(Collectors.joining(",")));
+    private static void updateMetaFile(Path dir, Properties props) throws IOException {
         try (OutputStream out = Files.newOutputStream(dir.resolve(META_FILE_NAME))) {
-            props.store(out, "Updated at " + new Date());
+            props.store(out, null);
         }
     }
 
-    static Set<Integer> loadMetaFile(Path dir) throws IOException {
+    static Properties loadMetaFile(Path dir) throws IOException {
         try (final InputStream in = Files.newInputStream(dir.resolve(META_FILE_NAME))) {
             Properties meta = new Properties();
             meta.load(in);
-            String hiddenVersionsString = meta.getProperty(HIDDEN_VERSIONS_PROPERTY, "");
-            if (hiddenVersionsString.isEmpty()) {
-                return new TreeSet<>();
-            } else {
-                return Arrays.stream(hiddenVersionsString.trim().split("\\s*,\\s*")).map(s -> Integer.valueOf(s)).collect(Collectors.toCollection(TreeSet::new));
-            }
+            return meta;
         }
     }
 

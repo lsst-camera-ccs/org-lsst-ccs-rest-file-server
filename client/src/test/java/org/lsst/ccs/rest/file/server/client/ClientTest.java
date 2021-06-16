@@ -204,7 +204,23 @@ public class ClientTest {
         versionView.setDefaultVersion(2);
         assertTrue(versionView.readAttributes().getDefaultVersion() == 2);
         assertTrue(versionView.readAttributes().getLatestVersion() == 2);
+        
+        assertFalse(versionView.readAttributes().isHidden(1));
+        assertEquals("", versionView.readAttributes().getComment(1));
+        
+        versionView.setComment(2, "This is a comment");
+        versionView.setHidden(1, true);
 
+        assertEquals("This is a comment", versionView.readAttributes().getComment(2));
+        assertTrue(versionView.readAttributes().isHidden(1));
+        
+        try {
+            versionView.setHidden(2, true);
+            fail("Should not get here");
+        } catch (IOException x) {
+            // expected
+        }
+        
         try (InputStream in = Files.newInputStream(pathInRestServer, VersionedOpenOption.DIFF, VersionOpenOption.of(2), VersionOpenOption.of(1));
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
             List<String> lines = reader.lines().collect(Collectors.toList());

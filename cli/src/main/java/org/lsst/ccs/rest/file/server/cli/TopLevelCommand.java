@@ -25,6 +25,7 @@ import picocli.CommandLine.Option;
     DiffCommand.class,
     MoveCommand.class,
     MakeDirectoryCommand.class,
+    SetCommand.class,
     HelpCommand.class})
 public class TopLevelCommand {
 
@@ -46,6 +47,9 @@ public class TopLevelCommand {
 
     @Option(names = "--cacheLog", description = "Log caching operations")
     private boolean logCaching;
+
+    @Option(names = "--auth", description = "Provide (jwt) authorization token")
+    private String authToken;
     
     public static void main(String[] args) {
         int exitCode = new CommandLine(new TopLevelCommand()).execute(args);
@@ -63,6 +67,9 @@ public class TopLevelCommand {
         }
         if (cacheLocation != null) {
             options.put(RestFileSystemOptions.CACHE_LOCATION, cacheLocation);
+        }
+        if (authToken != null) {
+            options.put(RestFileSystemOptions.AUTH_TOKEN, authToken);
         }
         options.put(RestFileSystemOptions.CACHE_LOGGING, logCaching);
         return FileSystems.newFileSystem(uri, options);

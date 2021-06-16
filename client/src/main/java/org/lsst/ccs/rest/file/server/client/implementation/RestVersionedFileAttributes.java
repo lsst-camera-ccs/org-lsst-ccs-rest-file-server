@@ -2,7 +2,7 @@ package org.lsst.ccs.rest.file.server.client.implementation;
 
 import java.nio.file.attribute.BasicFileAttributes;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributes;
-import org.lsst.ccs.web.rest.file.server.data.VersionInfo;
+import org.lsst.ccs.web.rest.file.server.data.VersionInfoV2;
 
 
 /**
@@ -11,9 +11,9 @@ import org.lsst.ccs.web.rest.file.server.data.VersionInfo;
  */
 class RestVersionedFileAttributes extends RestFileAttributes implements VersionedFileAttributes {
 
-    private final VersionInfo info;
+    private final VersionInfoV2 info;
 
-    RestVersionedFileAttributes(VersionInfo info) {
+    RestVersionedFileAttributes(VersionInfoV2 info) {
         super(info.getVersions().get(info.getDefault()-1));
         this.info = info;
     }
@@ -35,8 +35,20 @@ class RestVersionedFileAttributes extends RestFileAttributes implements Versione
 
     @Override
     public BasicFileAttributes getAttributes(int version) {
-        VersionInfo.Version versionAttributes = info.getVersions().get(version-1);
+        VersionInfoV2.Version versionAttributes = info.getVersions().get(version-1);
         return new RestFileAttributes(versionAttributes);
+    }
+
+    @Override
+    public boolean isHidden(int version) {
+        VersionInfoV2.Version versionAttributes = info.getVersions().get(version-1);
+        return versionAttributes.isHidden();
+    }
+
+    @Override
+    public String getComment(int version) {
+        VersionInfoV2.Version versionAttributes = info.getVersions().get(version-1);
+        return versionAttributes.getComment();
     }
     
 }

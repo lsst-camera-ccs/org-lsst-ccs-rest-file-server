@@ -77,7 +77,12 @@ public class FileServer {
             List<RestFileInfo> children = new ArrayList<>();
             for (java.nio.file.Path child : listFiles) {
                 BasicFileAttributes childAttributes = Files.getFileAttributeView(child, BasicFileAttributeView.class).readAttributes();
-                RestFileInfo childProperties = new RestFileInfo(child, childAttributes, VersionedFile.isVersionedFile(child));
+                final boolean isVersioned = VersionedFile.isVersionedFile(child);
+                if (isVersioned) {
+                   VersionedFile vf = new VersionedFile(child);
+                   childAttributes = Files.getFileAttributeView(vf.getLatest(), BasicFileAttributeView.class).readAttributes();
+                }
+                RestFileInfo childProperties = new RestFileInfo(child, childAttributes, isVersioned);
                 children.add(childProperties);
             }
             children.sort((RestFileInfo o1, RestFileInfo o2) -> o1.getName().compareTo(o2.getName()));

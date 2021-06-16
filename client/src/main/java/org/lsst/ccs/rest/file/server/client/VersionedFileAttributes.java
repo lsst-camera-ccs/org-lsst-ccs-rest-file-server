@@ -14,5 +14,9 @@ public interface VersionedFileAttributes extends BasicFileAttributes {
 
     int getDefaultVersion();
     
+    boolean isHidden(int version);
+    
+    String getComment(int version);
+    
     BasicFileAttributes getAttributes(int version);
 }

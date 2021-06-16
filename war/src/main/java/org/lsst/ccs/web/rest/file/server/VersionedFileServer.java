@@ -34,6 +34,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import org.jvnet.hk2.annotations.Optional;
 import static org.lsst.ccs.web.rest.file.server.data.Constants.PROTOCOL_VERSION_HEADER;
+import org.lsst.ccs.web.rest.file.server.data.VersionOptions;
 import org.lsst.ccs.web.rest.file.server.data.VersionInfoV2;
 import org.lsst.ccs.web.rest.file.server.jwt.JWTTokenNeeded;
 
@@ -66,7 +67,6 @@ public class VersionedFileServer {
     @GET
     @Path("info/{filePath: .*}")
     public Response info(@PathParam("filePath") String filePath, @Context Request request, @HeaderParam(PROTOCOL_VERSION_HEADER) Integer protocolVersion) throws IOException {
-        System.err.println("PROTOCOL_VERSION="+protocolVersion);
         java.nio.file.Path path = baseDir.resolve(filePath);
         VersionedFile cf = new VersionedFile(path);
         List<VersionInfoV2.Version> fileVersions = new ArrayList<>();
@@ -74,16 +74,17 @@ public class VersionedFileServer {
         for (int version : versions) {
             java.nio.file.Path child = cf.getPathForVersion(version);
             BasicFileAttributes fileAttributes = Files.getFileAttributeView(child, BasicFileAttributeView.class).readAttributes();
-            VersionInfoV2.Version info = new VersionInfoV2.Version(child, fileAttributes, version, cf.isHidden(version));
+            VersionInfoV2.Version info = new VersionInfoV2.Version(child, fileAttributes, version, cf.isHidden(version), cf.getComment(version));
             fileVersions.add(info);
         }
         VersionInfoV2 result = new VersionInfoV2(cf.getDefaultVersion(), cf.getLatestVersion(), fileVersions);
-        EntityTag eTag = new EntityTag(ETagHelper.computeEtag(result));
+        Serializable finalResult = result.downgrade(protocolVersion);
+        EntityTag eTag = new EntityTag(ETagHelper.computeEtag(finalResult));
         Response.ResponseBuilder builder = request.evaluatePreconditions(eTag);
         if (builder != null) {
             return builder.tag(eTag).build();
         }
-        return Response.ok(result.downgrade(protocolVersion))
+        return Response.ok(finalResult)
                 .tag(eTag)
                 .build();
     }
@@ -112,6 +113,7 @@ public class VersionedFileServer {
                 .lastModified(lastModified)
                 .build();
     }
+
     private int computeVersion(VersionedFile vf, String version) throws IOException, NumberFormatException {
         return computeVersion(vf, version, "default");
     }
@@ -143,8 +145,8 @@ public class VersionedFileServer {
         VersionedFile vf = new VersionedFile(path);
 
         int iv1 = computeVersion(vf, v1, "latest");
-        int iv2 = computeVersion(vf, v2, String.valueOf(iv1-1));
-        if (iv2<1) {
+        int iv2 = computeVersion(vf, v2, String.valueOf(iv1 - 1));
+        if (iv2 < 1) {
             throw new IOException("No previous version");
         }
 
@@ -204,7 +206,27 @@ public class VersionedFileServer {
         vf.setHidden(version, false);
         return info(filePath, request, protocolVersion);
     }
-    
+
+    @PUT
+    @Path("setOptions/{filePath: .*}")
+    @JWTTokenNeeded
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Object setOptions(@PathParam("filePath") String filePath, VersionOptions options, @Context Request request, @HeaderParam(PROTOCOL_VERSION_HEADER) Integer protocolVersion) throws IOException {
+        java.nio.file.Path path = baseDir.resolve(filePath);
+        VersionedFile vf = new VersionedFile(path);
+        int version = options.getVersion();
+        if (options.getHidden() != null) {
+            vf.setHidden(version, options.getHidden());
+        }
+        if (options.getComment() != null) {
+            vf.setComment(version, options.getComment());
+        }
+        if (options.getMakeDefault() != null && options.getMakeDefault()) {
+            vf.setDefaultVersion(version);
+        }
+        return info(filePath, request, protocolVersion);
+    }
+
     @POST
     @Path("upload/{filePath: .*}")
     @JWTTokenNeeded

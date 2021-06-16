@@ -19,6 +19,7 @@ public class RestFileSystemOptions {
     public final static String USE_SSL = "UseSSL";
     public final static String CACHE_LOCATION = "CacheLocation";
     public final static String ALLOW_ALTERNATE_CACHE_LOCATION = "CacheFallbackLocation";
+    public final static String AUTH_TOKEN = "JWTToken";
 
     public enum CacheOptions {
         NONE, MEMORY_ONLY, MEMORY_AND_DISK
@@ -66,6 +67,11 @@ public class RestFileSystemOptions {
 
         public Builder set(CacheFallback option) {
             map.put(CACHE_FALLBACK, option);
+            return this;
+        }
+        
+        public Builder setAuthorizationToken(String token) {
+            map.put(AUTH_TOKEN, token);
             return this;
         }
         

@@ -113,7 +113,9 @@
 },
 {
   "name":"java.lang.Boolean",
-  "fields":[{"name":"TYPE"}]
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true
 },
 {
   "name":"java.lang.Byte",
@@ -125,6 +127,10 @@
 },
 {
   "name":"java.lang.Class[]"
+},
+{
+  "name":"java.lang.Comparable",
+  "allDeclaredMethods":true
 },
 {
   "name":"java.lang.Double",
@@ -542,6 +548,14 @@
   "allDeclaredMethods":true
 },
 {
+  "name":"org.glassfish.jersey.client.DefaultClientAsyncExecutorProvider",
+  "allDeclaredMethods":true
+},
+{
+  "name":"org.glassfish.jersey.client.DefaultClientBackgroundSchedulerProvider",
+  "allDeclaredMethods":true
+},
+{
   "name":"org.glassfish.jersey.client.JerseyClientBuilder",
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
@@ -748,6 +762,18 @@
   "allDeclaredMethods":true
 },
 {
+  "name":"org.glassfish.jersey.spi.AbstractThreadPoolProvider",
+  "allDeclaredMethods":true
+},
+{
+  "name":"org.glassfish.jersey.spi.ScheduledThreadPoolExecutorProvider",
+  "allDeclaredMethods":true
+},
+{
+  "name":"org.glassfish.jersey.spi.ThreadPoolExecutorProvider",
+  "allDeclaredMethods":true
+},
+{
   "name":"org.jvnet.hk2.internal.DynamicConfigurationServiceImpl",
   "allDeclaredFields":true,
   "allDeclaredMethods":true,
@@ -761,6 +787,12 @@
 },
 {
   "name":"org.lsst.ccs.rest.file.server.cli.CatCommand",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.lsst.ccs.rest.file.server.cli.DiffCommand",
   "allDeclaredFields":true,
   "allDeclaredMethods":true,
   "methods":[{"name":"<init>","parameterTypes":[] }]
@@ -785,6 +817,12 @@
 },
 {
   "name":"org.lsst.ccs.rest.file.server.cli.MoveCommand",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.lsst.ccs.rest.file.server.cli.SetCommand",
   "allDeclaredFields":true,
   "allDeclaredMethods":true,
   "methods":[{"name":"<init>","parameterTypes":[] }]
@@ -817,6 +855,24 @@
 },
 {
   "name":"org.lsst.ccs.web.rest.file.server.data.VersionInfo$Version",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true
+},
+{
+  "name":"org.lsst.ccs.web.rest.file.server.data.VersionInfoV2",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true
+},
+{
+  "name":"org.lsst.ccs.web.rest.file.server.data.VersionInfoV2$Version",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true
+},
+{
+  "name":"org.lsst.ccs.web.rest.file.server.data.VersionOptions",
   "allDeclaredFields":true,
   "allDeclaredMethods":true,
   "allDeclaredConstructors":true

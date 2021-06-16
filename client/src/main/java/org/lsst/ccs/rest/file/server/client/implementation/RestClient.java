@@ -45,7 +45,8 @@ import org.lsst.ccs.rest.file.server.client.VersionedFileAttributes;
 import org.lsst.ccs.rest.file.server.client.VersionedOpenOption;
 import org.lsst.ccs.web.rest.file.server.data.IOExceptionResponse;
 import org.lsst.ccs.web.rest.file.server.data.RestFileInfo;
-import org.lsst.ccs.web.rest.file.server.data.VersionInfo;
+import org.lsst.ccs.web.rest.file.server.data.VersionInfoV2;
+import org.lsst.ccs.web.rest.file.server.data.VersionOptions;
 
 /**
  *
@@ -185,7 +186,7 @@ class RestClient implements Closeable {
     BasicFileAttributes getAttributes(RestPath path, LinkOption[] options) throws IOException {
         RestFileInfo info = getRestFileInfo(path);
         if (info.isVersionedFile()) {
-            VersionInfo vinfo = getVersionedRestFileInfo(path);
+            VersionInfoV2 vinfo = getVersionedRestFileInfo(path);
             RestFileInfo latest = vinfo.getVersions().get(vinfo.getDefault() - 1);
             return new RestFileAttributes(latest);
         } else {
@@ -198,7 +199,7 @@ class RestClient implements Closeable {
             throw new IOException("Cannot read versioned attributes for non-versioned file");
         }
         Response response = getAndCheckResponse(getRestTarget("rest/version/info/", path).request(MediaType.APPLICATION_JSON));
-        VersionInfo info = response.readEntity(VersionInfo.class);
+        VersionInfoV2 info = response.readEntity(VersionInfoV2.class);
         return new RestVersionedFileAttributes(info);
     }
 
@@ -227,11 +228,6 @@ class RestClient implements Closeable {
         return new VersionedFileAttributeView() {
 
             @Override
-            public void setDefaultVersion(int version) throws IOException {
-                Response response = putAndCheckResponse(getRestTarget("rest/version/set/", path).request(MediaType.APPLICATION_JSON), Entity.entity(version, MediaType.APPLICATION_JSON));
-            }
-
-            @Override
             public String name() {
                 return "versioned";
             }
@@ -241,6 +237,24 @@ class RestClient implements Closeable {
                 return getVersionedAttributes(path, options);
             }
 
+            @Override
+            public void setComment(int version, String comment) throws IOException {
+                VersionOptions vo = new VersionOptions.Builder(version).setComment(comment).build();
+                Response response = putAndCheckResponse(getRestTarget("rest/version/setOptions/", path).request(MediaType.APPLICATION_JSON), Entity.entity(vo, MediaType.APPLICATION_JSON));
+            }
+
+            @Override
+            public void setHidden(int version, boolean hidden) throws IOException {
+                VersionOptions vo = new VersionOptions.Builder(version).setHidden(hidden).build();
+                Response response = putAndCheckResponse(getRestTarget("rest/version/setOptions/", path).request(MediaType.APPLICATION_JSON), Entity.entity(vo, MediaType.APPLICATION_JSON));
+            }
+
+            @Override
+            public void setDefaultVersion(int version) throws IOException {
+                VersionOptions vo = new VersionOptions.Builder(version).setDefault().build();
+                Response response = putAndCheckResponse(getRestTarget("rest/version/setOptions/", path).request(MediaType.APPLICATION_JSON), Entity.entity(vo, MediaType.APPLICATION_JSON));
+            }
+            
         };
     }
 
@@ -254,9 +268,9 @@ class RestClient implements Closeable {
         return result;
     }
 
-    private VersionInfo getVersionedRestFileInfo(RestPath path) throws IOException {
+    private VersionInfoV2 getVersionedRestFileInfo(RestPath path) throws IOException {
         Response response = getAndCheckResponse(getRestTarget("rest/version/info/", path).request(MediaType.APPLICATION_JSON));
-        VersionInfo info = response.readEntity(VersionInfo.class);
+        VersionInfoV2 info = response.readEntity(VersionInfoV2.class);
         return info;
     }
 

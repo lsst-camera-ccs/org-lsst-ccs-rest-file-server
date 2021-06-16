@@ -27,28 +27,34 @@ public class JWTTokenNeededFilter implements ContainerRequestFilter {
     @Context
     private HttpServletRequest httpServletRequest;
     
-    private static final Pattern pattern = Pattern.compile(System.getenv("CCS_REST_ALLOWED_IPS"));
+    private static final String allowedIPs = System.getenv("CCS_REST_ALLOWED_IPS");
+    private static final Pattern ALLOWED_IPS_PATTERN = allowedIPs == null ? null : Pattern.compile(allowedIPs);
 
     @Override
     public void filter(ContainerRequestContext requestContext) throws IOException {
 
+        if (ALLOWED_IPS_PATTERN != null && ALLOWED_IPS_PATTERN.matcher(httpServletRequest.getRemoteAddr()).matches()) {
+            return;
+        }
+
         // Get the HTTP Authorization header from the request
         String authorizationHeader = requestContext.getHeaderString(HttpHeaders.AUTHORIZATION);
+        if (authorizationHeader == null) {
+            requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
+        } else {
+            // Extract the token from the HTTP Authorization header
+            String token = authorizationHeader.substring("Bearer".length()).trim();
 
-        // Extract the token from the HTTP Authorization header
-        String token = authorizationHeader.substring("Bearer".length()).trim();
-
-        try {
-            // Validate the token
-            System.out.println("Got token " + token);
-            System.out.println(" from "+httpServletRequest.getRemoteAddr());
-            if (!pattern.matcher(httpServletRequest.getRemoteAddr()).matches()) {
+            try {
+                // Validate the token
+                System.out.println("Got token " + token);
+                System.out.println(" from "+httpServletRequest.getRemoteAddr());
                 FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(token);
                 String uid = decodedToken.getUid();
                 System.out.println("Got uid " + uid);
+            } catch (FirebaseAuthException e) {
+                requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
             }
-        } catch (FirebaseAuthException e) {
-            requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
         }
     }
 }
