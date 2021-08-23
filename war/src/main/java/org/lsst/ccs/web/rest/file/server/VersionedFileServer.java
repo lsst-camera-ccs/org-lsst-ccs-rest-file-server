@@ -186,28 +186,6 @@ public class VersionedFileServer {
     }
 
     @PUT
-    @Path("hide/{filePath: .*}")
-    @JWTTokenNeeded
-    @Consumes(MediaType.APPLICATION_JSON)
-    public Object hide(@PathParam("filePath") String filePath, int version, @Context Request request, @HeaderParam(PROTOCOL_VERSION_HEADER) Integer protocolVersion) throws IOException {
-        java.nio.file.Path path = baseDir.resolve(filePath);
-        VersionedFile vf = new VersionedFile(path);
-        vf.setHidden(version, true);
-        return info(filePath, request, protocolVersion);
-    }
-
-    @PUT
-    @Path("unhide/{filePath: .*}")
-    @JWTTokenNeeded
-    @Consumes(MediaType.APPLICATION_JSON)
-    public Object unhide(@PathParam("filePath") String filePath, int version, @Context Request request, @HeaderParam(PROTOCOL_VERSION_HEADER) Integer protocolVersion) throws IOException {
-        java.nio.file.Path path = baseDir.resolve(filePath);
-        VersionedFile vf = new VersionedFile(path);
-        vf.setHidden(version, false);
-        return info(filePath, request, protocolVersion);
-    }
-
-    @PUT
     @Path("setOptions/{filePath: .*}")
     @JWTTokenNeeded
     @Consumes(MediaType.APPLICATION_JSON)

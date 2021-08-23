@@ -17,6 +17,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Encapsulation of a versioned file. The current implementation stores the file
@@ -74,14 +75,16 @@ public class VersionedFile {
     }
 
     int[] getVersions(boolean includeHidden) throws IOException {
-        return Files.list(path)
-                .filter(p -> !Files.isSymbolicLink(p))
-                .map(p -> p.getFileName().toString())
-                .filter(s -> s.matches(("\\d+")))
-                .mapToInt(s -> Integer.parseInt(s))
-                .filter(v -> includeHidden || !isHidden(v))
-                .sorted()
-                .toArray();
+        try (Stream<Path> list = Files.list(path)) {
+            return list
+                    .filter(p -> !Files.isSymbolicLink(p))
+                    .map(p -> p.getFileName().toString())
+                    .filter(s -> s.matches(("\\d+")))
+                    .mapToInt(s -> Integer.parseInt(s))
+                    .filter(v -> includeHidden || !isHidden(v))
+                    .sorted()
+                    .toArray();
+        }
     }
 
     int getLatestVersion() throws IOException {

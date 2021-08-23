@@ -10,10 +10,10 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.inject.Inject;
 import javax.servlet.ServletContext;
 import javax.ws.rs.Consumes;
@@ -73,7 +73,10 @@ public class FileServer {
         RestFileInfo fileProperties;
         boolean isDirectory = Files.isDirectory(file);
         if (isDirectory) {
-            List<java.nio.file.Path> listFiles = Files.list(file).collect(Collectors.toList());
+            List<java.nio.file.Path> listFiles;
+            try (Stream<java.nio.file.Path> list = Files.list(file)) {
+                listFiles = list.collect(Collectors.toList());
+            }
             List<RestFileInfo> children = new ArrayList<>();
             for (java.nio.file.Path child : listFiles) {
                 BasicFileAttributes childAttributes = Files.getFileAttributeView(child, BasicFileAttributeView.class).readAttributes();
