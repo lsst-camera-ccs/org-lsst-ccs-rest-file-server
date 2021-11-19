@@ -17,11 +17,13 @@ import java.nio.file.LinkOption;
 import java.nio.file.NotDirectoryException;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -104,7 +106,6 @@ class RestClient implements Closeable {
 
     OutputStream newOutputStream(RestPath path, OpenOption[] options) throws IOException {
 
-        // TODO: Deal with options
         VersionOpenOption voo = getOption(options, VersionOpenOption.class);
         boolean isVersionedFile;
         try {
@@ -113,7 +114,11 @@ class RestClient implements Closeable {
             isVersionedFile = false;
         }
         String restPath = isVersionedFile ? "rest/version/upload/" : "rest/upload/";
-        WebTarget target = getRestTarget(restPath, path);
+        UriBuilder builder = UriBuilder.fromUri(getRestURI(restPath, path));
+        if (!isVersionedFile) {
+            Arrays.stream(options).forEach(o -> builder.queryParam("openOption", o.toString()));
+        }
+        WebTarget target = client.target(builder.build());
         BlockingQueue<Future<Response>> queue = new ArrayBlockingQueue<>(1);
         PipedOutputStream out = new PipedOutputStream() {
             @Override

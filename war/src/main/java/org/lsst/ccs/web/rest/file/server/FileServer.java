@@ -188,9 +188,15 @@ public class FileServer {
     @POST
     @Path("upload/{filePath: .*}")
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
-    public Response upload(@PathParam("filePath") String filePath, byte[] content) throws IOException {
+    public Response upload(@PathParam("filePath") String filePath, @QueryParam("openOption") List<String> openOptions, byte[] content) throws IOException {
+        StandardOpenOption[] soo;
+        if (openOptions == null || openOptions.isEmpty()) {
+            soo = new StandardOpenOption[]{ StandardOpenOption.CREATE_NEW };
+        } else {
+            soo = openOptions.stream().map(s -> StandardOpenOption.valueOf(s)).toArray(StandardOpenOption[]::new);
+        }
         java.nio.file.Path path = baseDir.resolve(filePath);
-        try (OutputStream out = Files.newOutputStream(path, StandardOpenOption.CREATE_NEW)) {
+        try (OutputStream out = Files.newOutputStream(path, soo)) {
             out.write(content);
         }
         return Response.ok().build();
