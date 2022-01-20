@@ -12,7 +12,7 @@
     <parent>
         <groupId>org.lsst</groupId>
         <artifactId>org-lsst-ccs-parent</artifactId>
-        <version>3.0.11</version>
+        <version>3.0.13-SNAPSHOT</version>
         <relativePath />
     </parent>
     
@@ -26,7 +26,6 @@
     <properties>
         <endorsed.dir>${project.build.directory}/endorsed</endorsed.dir>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jersey.version>2.32</jersey.version>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <org_lsst_ccs_project_type>utility</org_lsst_ccs_project_type>
@@ -65,13 +64,6 @@
             
     <dependencyManagement>
         <dependencies>            
-            <dependency>
-                <groupId>org.glassfish.jersey</groupId>
-                <artifactId>jersey-bom</artifactId>
-                <version>${jersey.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
             <dependency>
                 <groupId>org.junit.jupiter</groupId>
                 <artifactId>junit-jupiter-api</artifactId>
