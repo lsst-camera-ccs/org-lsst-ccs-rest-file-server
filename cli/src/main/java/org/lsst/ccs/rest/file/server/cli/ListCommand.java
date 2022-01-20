@@ -97,7 +97,7 @@ public class ListCommand implements Callable<Void> {
                     String info = String.join(",", attributes);
                     String comment = vfa.getComment(version);
                     if (showLong || si) {
-                        String line = String.format("@|%s %10s %s %3d %s %s|@", color, fsf.format(bfa.size()), fdf.format(bfa.lastModifiedTime()), version, info, comment);
+                        String line = String.format("@|%s %10s %s %3d %s \"%s\"|@", color, fsf.format(bfa.size()), fdf.format(bfa.lastModifiedTime()), version, info, comment);
                         System.out.println(ansi.string(line));
                     } else {
                         String line = String.format("@|%s %3d %s|@", color, version, info);

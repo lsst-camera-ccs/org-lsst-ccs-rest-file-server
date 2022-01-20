@@ -10,10 +10,10 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.inject.Inject;
 import javax.servlet.ServletContext;
 import javax.ws.rs.Consumes;
@@ -73,7 +73,10 @@ public class FileServer {
         RestFileInfo fileProperties;
         boolean isDirectory = Files.isDirectory(file);
         if (isDirectory) {
-            List<java.nio.file.Path> listFiles = Files.list(file).collect(Collectors.toList());
+            List<java.nio.file.Path> listFiles;
+            try (Stream<java.nio.file.Path> list = Files.list(file)) {
+                listFiles = list.collect(Collectors.toList());
+            }
             List<RestFileInfo> children = new ArrayList<>();
             for (java.nio.file.Path child : listFiles) {
                 BasicFileAttributes childAttributes = Files.getFileAttributeView(child, BasicFileAttributeView.class).readAttributes();
@@ -185,9 +188,15 @@ public class FileServer {
     @POST
     @Path("upload/{filePath: .*}")
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
-    public Response upload(@PathParam("filePath") String filePath, byte[] content) throws IOException {
+    public Response upload(@PathParam("filePath") String filePath, @QueryParam("openOption") List<String> openOptions, byte[] content) throws IOException {
+        StandardOpenOption[] soo;
+        if (openOptions == null || openOptions.isEmpty()) {
+            soo = new StandardOpenOption[]{ StandardOpenOption.CREATE_NEW };
+        } else {
+            soo = openOptions.stream().map(s -> StandardOpenOption.valueOf(s)).toArray(StandardOpenOption[]::new);
+        }
         java.nio.file.Path path = baseDir.resolve(filePath);
-        try (OutputStream out = Files.newOutputStream(path, StandardOpenOption.CREATE_NEW)) {
+        try (OutputStream out = Files.newOutputStream(path, soo)) {
             out.write(content);
         }
         return Response.ok().build();

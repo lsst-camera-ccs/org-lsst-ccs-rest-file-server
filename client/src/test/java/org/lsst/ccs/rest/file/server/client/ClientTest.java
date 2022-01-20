@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.ws.rs.core.UriBuilder;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -164,6 +165,22 @@ public class ClientTest {
         }
     }
 
+    @Test
+    public void replaceExisting() throws IOException {
+        Path pathInRestServer = restfs.getPath("test2.txt");
+        try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer, StandardOpenOption.CREATE_NEW)) {
+            writer.append("This is a test file");
+        }
+        try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer, StandardOpenOption.TRUNCATE_EXISTING)) {
+            writer.append("This is a test file as well\n");
+        }
+        try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer, StandardOpenOption.APPEND)) {
+            writer.append("This is a test file as well\n");
+        }
+        long nlines = Files.lines(pathInRestServer).count();
+        assertEquals(2, nlines);
+    }
+    
     @Test
     public void simpleVersionTest() throws IOException {
 
