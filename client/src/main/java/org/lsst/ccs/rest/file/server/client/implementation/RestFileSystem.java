@@ -49,10 +49,11 @@ class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
 
     public RestFileSystem(RestFileSystemProvider provider, URI uri, Map<String, ?> env) throws IOException {
         this.provider = provider;
-        this.uri = uri;
+        this.uri = uri.getPath().endsWith("/") ? uri : UriBuilder.fromUri(uri).path(uri.getPath()+"/").build();
         this.options = new RestFileSystemOptionsHelper(env);
         Client client = ClientBuilder.newClient();
         final URI restURI = computeRestURI(client);
+        final URI mountPoint = UriBuilder.fromUri(restURI).scheme(uri.getScheme()).build().relativize(uri);
         if (options.getCacheOptions() != RestFileSystemOptions.CacheOptions.NONE) {
             cache = new Cache(options);
             client.register(new CacheRequestFilter(cache, offline || options.getCacheFallback() == RestFileSystemOptions.CacheFallback.ALWAYS));
@@ -65,7 +66,7 @@ class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
         if (jwt != null) {
             client.register(new AddJWTTokenRequestFilter(jwt.toString()));
         }
-        restClient = new RestClient(client, restURI);
+        restClient = new RestClient(client, restURI, mountPoint);
     }
 
     private URI computeRestURI(Client client) throws IOException {
@@ -74,29 +75,43 @@ class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
         // Test if we can connect, handle redirects
         URI trialRestURI = UriBuilder.fromUri(uri).scheme(schema).build();
         if (useSSL == RestFileSystemOptions.SSLOptions.AUTO || options.getCacheFallback() == RestFileSystemOptions.CacheFallback.OFFLINE) {
-            URI testURI = trialRestURI.resolve("rest/list/");
-            try {
-                Response response = client.target(testURI).request(MediaType.APPLICATION_JSON).head();
-                if (response.getStatus() / 100 == 3) {
-                    String location = response.getHeaderString("Location");
-                    testURI = UriBuilder.fromUri(location).build();
-                    response = client.target(testURI).request(MediaType.APPLICATION_JSON).head();
-                    if (response.getStatus() != 200) {
-                        throw new IOException("Cannot create rest file system, rc=" + response.getStatus());
+            for (;;) {
+                URI testURI = trialRestURI.resolve("rest/list/");
+                try {
+                    Response response = client.target(testURI).request(MediaType.APPLICATION_JSON).head();
+                    if (response.getStatus() / 100 == 3) {
+                        String location = response.getHeaderString("Location");
+                        testURI = UriBuilder.fromUri(location).build();
+                        response = client.target(testURI).request(MediaType.APPLICATION_JSON).head();
+                        if (response.getStatus() != 200) {
+                            if ("/".equals(trialRestURI.getPath())) {
+                                throw new IOException("Cannot create rest file system, rc=" + response.getStatus());
+                            }
+                            trialRestURI = trialRestURI.resolve("..");
+                        } else {
+                            trialRestURI = testURI.resolve("../..");
+                            break;
+                        }
+                    } else if (response.getStatus() != 200) {
+                        if ("/".equals(trialRestURI.getPath())) {
+                            throw new IOException("Cannot create rest file system, rc=" + response.getStatus());
+                        }
+                        trialRestURI = trialRestURI.resolve("..");
+
+                    } else {
+                        break;
                     }
-                    trialRestURI = testURI.resolve("../..");
-                } else if (response.getStatus() != 200) {
-                    throw new IOException("Cannot create rest file system, rc=" + response.getStatus());
-                }
-            } catch (ProcessingException | IOException x) {
-                if (options.getCacheOptions() == RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK 
-                        && options.getCacheFallback() != RestFileSystemOptions.CacheFallback.NEVER) {
-                    offline = true;
-                    LOG.log(Level.WARNING, () -> String.format("Rest File server running in offline mode: %s (%s)", uri, x.getMessage()));
-                } else if (x instanceof ProcessingException) {
-                    throw RestClient.convertProcessingException((ProcessingException) x);
-                } else {
-                    throw x;
+                } catch (ProcessingException x) {
+                    if (options.getCacheOptions() == RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK
+                            && options.getCacheFallback() != RestFileSystemOptions.CacheFallback.NEVER) {
+                        offline = true;
+                        LOG.log(Level.WARNING, () -> String.format("Rest File server running in offline mode: %s (%s)", uri, x.getMessage()));
+                        break;
+                    } else if (x instanceof ProcessingException) {
+                        throw RestClient.convertProcessingException((ProcessingException) x);
+                    } else {
+                        throw x;
+                    }
                 }
             }
         }
