@@ -1,21 +1,32 @@
 package org.lsst.ccs.rest.file.server.client.implementation;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
+import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
 
 /**
  *
  * @author tonyj
  */
-class RestFileSystemOptionsHelper {
+ class RestFileSystemOptionsHelper {
 
     private final Map<String, ?> env;
+    private static final Logger LOG = Logger.getLogger(RestFileSystemOptionsHelper.class.getName());
 
     RestFileSystemOptionsHelper(Map<String, ?> env) {
-        this.env = env;
+        if (env == null) {
+            this.env = createDefaultOptions();
+        } else {
+            this.env = env;
+        }
     }
 
     RestFileSystemOptions.CacheOptions getCacheOptions() {
@@ -61,8 +72,29 @@ class RestFileSystemOptionsHelper {
         // TODO: Fix unsafe cast (how?)
         if (type.isInstance(result)) {
             return type.cast(result);
+        } else if (result instanceof String) {
+            try {
+                Method method = type.getMethod("valueOf", String.class);
+                if (type.isAssignableFrom(method.getReturnType())) {
+                    return (T) method.invoke(null, result);
+                } 
+            } catch (ReflectiveOperationException x) {
+                // Just fall through to the IllegalArgumentException
+            }
         }
         throw new IllegalArgumentException("Invalid value for option " + optionName + ": " + result);
     }
 
+    private Map<String, ?> createDefaultOptions() {
+        String defaultOptions = System.getProperty(RestFileSystemOptions.DEFAULT_ENV_PROPERTY);
+        if (defaultOptions != null) {
+            ObjectMapper objectMapper = new ObjectMapper();
+            try {
+                return objectMapper.readValue(defaultOptions, new TypeReference<Map<String,Object>>(){});
+            } catch (JsonProcessingException x) {
+                LOG.log(Level.WARNING, "Unable to parse default rest server options: "+defaultOptions, x);
+            }        
+        } 
+        return null;
+    }
 }

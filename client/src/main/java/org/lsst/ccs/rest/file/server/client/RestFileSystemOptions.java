@@ -4,10 +4,11 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import org.lsst.ccs.rest.file.server.client.implementation.RestFileSystemProvider;
 
 /**
  * Options which can be passed as part of the environment argument when
- * creating a RestFileSystem.
+ * explicitly creating a RestFileSystem.
  *
  * @author tonyj
  */
@@ -20,6 +21,13 @@ public class RestFileSystemOptions {
     public final static String CACHE_LOCATION = "CacheLocation";
     public final static String ALLOW_ALTERNATE_CACHE_LOCATION = "CacheFallbackLocation";
     public final static String AUTH_TOKEN = "JWTToken";
+    /**
+     * A system property which can be set to provide a default set of options if no explicit options are 
+     * set and if none have been provided by <code>setDefaultFileSystemEnvironment</code> method. The value
+     * of the system property, if set, should be a JSON string representation of a Map. If the Map is 
+     * invalid a WARNING will be issued, but the map will otherwise be ignored.
+     */
+    public final static String DEFAULT_ENV_PROPERTY = "org.lsst.ccs.rest.file.client.defaultEnvironment";
 
     public enum CacheOptions {
         NONE, MEMORY_ONLY, MEMORY_AND_DISK
@@ -83,5 +91,13 @@ public class RestFileSystemOptions {
         public Map<String, Object> build() {
             return map;
         }
+    }
+    /**
+     * Provide a default environment to be used in the event that no explicit
+     * environment is given when creating the RestFileSystem.
+     * @param defaultEnv 
+     */
+    public static void setDefaultFileSystemEnvironment(Map<String, ?> defaultEnv) {
+        RestFileSystemProvider.setDefaultFileSystemOption(defaultEnv);
     }
 }
