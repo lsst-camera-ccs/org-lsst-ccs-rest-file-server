@@ -217,7 +217,9 @@ public class RestFileSystemProvider extends FileSystemProvider {
     }
 
     void dispose(URI uri) {
-        cache.remove(uri);
+        if ( cache.remove(uri) == null ) {
+            throw new RuntimeException("Something went wrong when closing file system "+uri+". The cache was not cleared and the possible values are: "+cache.keySet());
+        }
     }
 
 }
