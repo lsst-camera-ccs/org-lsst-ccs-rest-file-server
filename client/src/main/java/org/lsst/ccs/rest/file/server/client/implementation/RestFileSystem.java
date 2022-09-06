@@ -30,7 +30,7 @@ import org.lsst.ccs.rest.file.server.client.implementation.unixlike.AbstractFile
  *
  * @author tonyj
  */
-class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
+public class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
 
     private static final Set<String> SUPPORTED_VIEWS = new HashSet<>();
 
@@ -46,6 +46,7 @@ class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
     private final Cache cache;
     private boolean offline = false;
     private static final Logger LOG = Logger.getLogger(RestFileSystem.class.getName());
+    private final URI mountPoint;
 
     public RestFileSystem(RestFileSystemProvider provider, URI uri, Map<String, ?> env) throws IOException {
         this.provider = provider;
@@ -53,7 +54,7 @@ class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
         this.options = new RestFileSystemOptionsHelper(env);
         Client client = ClientBuilder.newClient();
         final URI restURI = computeRestURI(client);
-        final URI mountPoint = UriBuilder.fromUri(restURI).scheme(uri.getScheme()).build().relativize(uri);
+        mountPoint = UriBuilder.fromUri(restURI).scheme(uri.getScheme()).build().relativize(uri);
         if (options.getCacheOptions() != RestFileSystemOptions.CacheOptions.NONE) {
             cache = new Cache(options);
             client.register(new CacheRequestFilter(cache, offline || options.getCacheFallback() == RestFileSystemOptions.CacheFallback.ALWAYS));
@@ -83,6 +84,7 @@ class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
                         String location = response.getHeaderString("Location");
                         testURI = UriBuilder.fromUri(location).build();
                         response = client.target(testURI).request(MediaType.APPLICATION_JSON).head();
+                        System.out.println("Request to "+testURI+" "+response.getStatus());
                         if (response.getStatus() != 200) {
                             if ("/".equals(trialRestURI.getPath())) {
                                 throw new IOException("Cannot create rest file system, rc=" + response.getStatus());
@@ -175,8 +177,12 @@ class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
-    URI getURI(String path) {
+    public URI getURI(String path) {
         return uri.resolve(path);
+    }
+    
+    public URI getMountPoint() {
+        return mountPoint;
     }
 
 }

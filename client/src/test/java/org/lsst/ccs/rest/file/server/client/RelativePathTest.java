@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import javax.ws.rs.core.UriBuilder;
+import org.junit.Assert;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.lsst.ccs.rest.file.server.client.implementation.RestFileSystem;
 import org.lsst.ccs.web.rest.file.server.TestServer;
 
 /**
@@ -81,6 +83,16 @@ public class RelativePathTest {
         }
     }
 
+    @Test
+    public void mountPointTest() throws IOException, URISyntaxException {
+        try {
+            RestFileSystem rfs = (RestFileSystem)FileSystems.newFileSystem(new URI("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/config/"), Collections.<String, Object>emptyMap());
+            Assert.assertEquals("Current mount point: "+rfs.getMountPoint()+" but expected \"config\"","config",rfs.getMountPoint().toString());
+        } catch (IOException x) {
+            x.printStackTrace();
+            // Expected
+        }
+    }
     
     
 }
