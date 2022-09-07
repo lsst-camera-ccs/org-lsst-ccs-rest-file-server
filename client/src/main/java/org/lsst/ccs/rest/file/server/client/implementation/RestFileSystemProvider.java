@@ -57,11 +57,14 @@ public class RestFileSystemProvider extends FileSystemProvider {
         if (env == null) {
             env = defaultEnvironment == null ? NO_ENV : defaultEnvironment;
         }
+        
+        URI restURI = RestFileSystem.getFullURI(uri, env);
+
         synchronized (cache) {
-            RestFileSystem result = cache.get(uri);
+            RestFileSystem result = cache.get(restURI);
             if (result == null) {
                 result = new RestFileSystem(RestFileSystemProvider.this, uri, env);
-                cache.put(uri, result);
+                cache.put(restURI, result);
                 return result;
             }
             throw new FileSystemAlreadyExistsException(uri.toString());

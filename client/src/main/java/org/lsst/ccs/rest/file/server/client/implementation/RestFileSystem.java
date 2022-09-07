@@ -53,14 +53,7 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
         uri = uri.getPath().endsWith("/") ? uri : UriBuilder.fromUri(uri).path(uri.getPath()+"/").build();
         this.options = new RestFileSystemOptionsHelper(env);
         mountPoint = options.getMountPoint();
-        System.out.println(mountPoint.getPath());
-        System.out.println(uri.getPath());
-        if (uri.getPath().endsWith(mountPoint.getPath())) {
-            this.uri = UriBuilder.fromUri(uri).replacePath(uri.getPath().replace(mountPoint.getPath(), "")).build();
-        } else {
-            this.uri = uri;
-        }
-        System.out.println(this.uri);
+        this.uri = uri;
         Client client = ClientBuilder.newClient();
         final URI restURI = computeRestURI(client);
         if (options.getCacheOptions() != RestFileSystemOptions.CacheOptions.NONE) {
@@ -124,7 +117,7 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
 
     @Override
     public void close() throws IOException {
-        provider.dispose(this.uri);
+        provider.dispose(getFullURI());
         restClient.close();
         if (cache != null) {
             cache.close();
@@ -177,5 +170,15 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
     public URI getMountPoint() {
         return mountPoint;
     }
-
+    
+    public URI getFullURI() {
+        return uri.resolve(mountPoint);
+    }
+    
+    public static URI getFullURI(URI uri, Map<String,?> env) {
+        RestFileSystemOptionsHelper optionsHelper = new RestFileSystemOptionsHelper(env);        
+        URI restURI = uri.resolve(optionsHelper.getMountPoint());
+        return restURI;
+    }
+    
 }

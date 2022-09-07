@@ -65,11 +65,9 @@ public class RelativePathTest {
         
         // Should trailing / be required?
         URI mountPoint = URI.create("misc/");
-        URI relativeRootURI = restRootURI.resolve(mountPoint);
         System.out.println(restRootURI);
-        System.out.println(relativeRootURI);
         Map<String, URI> env = Collections.singletonMap(RestFileSystemOptions.MOUNT_POINT, mountPoint);
-        FileSystem relativefs = FileSystems.newFileSystem(relativeRootURI, env);
+        FileSystem relativefs = FileSystems.newFileSystem(restRootURI, env);
         Path relativePathInRestServer = relativefs.getPath("test2.txt");
         System.out.println(relativePathInRestServer);
         assertTrue(Files.exists(relativePathInRestServer));
@@ -90,7 +88,11 @@ public class RelativePathTest {
         try {
             URI mountPoint = URI.create("config/");
             Map<String, URI> env = Collections.singletonMap(RestFileSystemOptions.MOUNT_POINT, mountPoint);
-            RestFileSystem rfs = (RestFileSystem)FileSystems.newFileSystem(new URI("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/config/"), env);
+            RestFileSystem rfs = (RestFileSystem)FileSystems.newFileSystem(new URI("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/"), env);
+            
+            rfs.close();            
+            rfs = (RestFileSystem)FileSystems.newFileSystem(new URI("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/"), env);
+            
             Assert.assertEquals("Current mount point: "+rfs.getMountPoint()+" but expected \"config\"","config/",rfs.getMountPoint().toString());
         } catch (IOException x) {
             x.printStackTrace();
