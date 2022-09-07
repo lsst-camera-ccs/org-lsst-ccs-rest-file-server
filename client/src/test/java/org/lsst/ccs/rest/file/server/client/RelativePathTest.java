@@ -85,19 +85,14 @@ public class RelativePathTest {
 
     @Test
     public void mountPointTest() throws IOException, URISyntaxException {
-        try {
-            URI mountPoint = URI.create("config/");
-            Map<String, URI> env = Collections.singletonMap(RestFileSystemOptions.MOUNT_POINT, mountPoint);
-            RestFileSystem rfs = (RestFileSystem)FileSystems.newFileSystem(new URI("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/"), env);
-            
-            rfs.close();            
-            rfs = (RestFileSystem)FileSystems.newFileSystem(new URI("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/"), env);
-            
-            Assert.assertEquals("Current mount point: "+rfs.getMountPoint()+" but expected \"config\"","config/",rfs.getMountPoint().toString());
-        } catch (IOException x) {
-            x.printStackTrace();
-            // Expected
-        }
+        URI mountPoint = URI.create("config/");
+        Map<String, URI> env = Collections.singletonMap(RestFileSystemOptions.MOUNT_POINT, mountPoint);
+        RestFileSystem rfs = (RestFileSystem) FileSystems.newFileSystem(new URI("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/"), env);
+
+        rfs.close();
+        rfs = (RestFileSystem) FileSystems.newFileSystem(new URI("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/"), env);
+
+        Assert.assertEquals("Current mount point: " + rfs.getMountPoint() + " but expected \"config\"", "config/", rfs.getMountPoint().toString());
     }
     
     

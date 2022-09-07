@@ -171,11 +171,11 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
         return mountPoint;
     }
     
-    public URI getFullURI() {
+    URI getFullURI() {
         return uri.resolve(mountPoint);
     }
     
-    public static URI getFullURI(URI uri, Map<String,?> env) {
+    static URI getFullURI(URI uri, Map<String,?> env) {
         RestFileSystemOptionsHelper optionsHelper = new RestFileSystemOptionsHelper(env);        
         URI restURI = uri.resolve(optionsHelper.getMountPoint());
         return restURI;
