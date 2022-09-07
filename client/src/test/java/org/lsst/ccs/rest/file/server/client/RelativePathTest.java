@@ -9,6 +9,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.Map;
 import javax.ws.rs.core.UriBuilder;
 import org.junit.Assert;
 import org.junit.jupiter.api.AfterAll;
@@ -63,14 +64,15 @@ public class RelativePathTest {
         assertTrue(Files.exists(pathInRestServer));
         
         // Should trailing / be required?
-        URI relativeRootURI = restRootURI.resolve("misc/");
+        URI mountPoint = URI.create("misc/");
+        URI relativeRootURI = restRootURI.resolve(mountPoint);
         System.out.println(restRootURI);
         System.out.println(relativeRootURI);
-        FileSystem relativefs = FileSystems.newFileSystem(relativeRootURI, Collections.<String, Object>emptyMap());
+        Map<String, URI> env = Collections.singletonMap(RestFileSystemOptions.MOUNT_POINT, mountPoint);
+        FileSystem relativefs = FileSystems.newFileSystem(relativeRootURI, env);
         Path relativePathInRestServer = relativefs.getPath("test2.txt");
         System.out.println(relativePathInRestServer);
         assertTrue(Files.exists(relativePathInRestServer));
-        
     }
     
     @Test
@@ -86,8 +88,10 @@ public class RelativePathTest {
     @Test
     public void mountPointTest() throws IOException, URISyntaxException {
         try {
-            RestFileSystem rfs = (RestFileSystem)FileSystems.newFileSystem(new URI("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/config/"), Collections.<String, Object>emptyMap());
-            Assert.assertEquals("Current mount point: "+rfs.getMountPoint()+" but expected \"config\"","config",rfs.getMountPoint().toString());
+            URI mountPoint = URI.create("config/");
+            Map<String, URI> env = Collections.singletonMap(RestFileSystemOptions.MOUNT_POINT, mountPoint);
+            RestFileSystem rfs = (RestFileSystem)FileSystems.newFileSystem(new URI("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/config/"), env);
+            Assert.assertEquals("Current mount point: "+rfs.getMountPoint()+" but expected \"config\"","config/",rfs.getMountPoint().toString());
         } catch (IOException x) {
             x.printStackTrace();
             // Expected

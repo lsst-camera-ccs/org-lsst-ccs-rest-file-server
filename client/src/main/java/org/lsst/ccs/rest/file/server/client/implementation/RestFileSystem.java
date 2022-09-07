@@ -50,11 +50,19 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
 
     public RestFileSystem(RestFileSystemProvider provider, URI uri, Map<String, ?> env) throws IOException {
         this.provider = provider;
-        this.uri = uri.getPath().endsWith("/") ? uri : UriBuilder.fromUri(uri).path(uri.getPath()+"/").build();
+        uri = uri.getPath().endsWith("/") ? uri : UriBuilder.fromUri(uri).path(uri.getPath()+"/").build();
         this.options = new RestFileSystemOptionsHelper(env);
+        mountPoint = options.getMountPoint();
+        System.out.println(mountPoint.getPath());
+        System.out.println(uri.getPath());
+        if (uri.getPath().endsWith(mountPoint.getPath())) {
+            this.uri = UriBuilder.fromUri(uri).replacePath(uri.getPath().replace(mountPoint.getPath(), "")).build();
+        } else {
+            this.uri = uri;
+        }
+        System.out.println(this.uri);
         Client client = ClientBuilder.newClient();
         final URI restURI = computeRestURI(client);
-        mountPoint = UriBuilder.fromUri(restURI).scheme(uri.getScheme()).build().relativize(uri);
         if (options.getCacheOptions() != RestFileSystemOptions.CacheOptions.NONE) {
             cache = new Cache(options);
             client.register(new CacheRequestFilter(cache, offline || options.getCacheFallback() == RestFileSystemOptions.CacheFallback.ALWAYS));
@@ -76,7 +84,6 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
         // Test if we can connect, handle redirects
         URI trialRestURI = UriBuilder.fromUri(uri).scheme(schema).build();
         if (useSSL == RestFileSystemOptions.SSLOptions.AUTO || options.getCacheFallback() == RestFileSystemOptions.CacheFallback.OFFLINE) {
-            for (;;) {
                 URI testURI = trialRestURI.resolve("rest/list/");
                 try {
                     Response response = client.target(testURI).request(MediaType.APPLICATION_JSON).head();
@@ -84,31 +91,18 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
                         String location = response.getHeaderString("Location");
                         testURI = UriBuilder.fromUri(location).build();
                         response = client.target(testURI).request(MediaType.APPLICATION_JSON).head();
-                        System.out.println("Request to "+testURI+" "+response.getStatus());
                         if (response.getStatus() != 200) {
-                            if ("/".equals(trialRestURI.getPath())) {
-                                throw new IOException("Cannot create rest file system, rc=" + response.getStatus());
-                            }
-                            trialRestURI = trialRestURI.resolve("..");
-                        } else {
-                            trialRestURI = testURI.resolve("../..");
-                            break;
+                            throw new IOException("Cannot create rest file system, rc=" + response.getStatus() + "uri="+testURI);
                         }
+                        trialRestURI = testURI.resolve("../..");
                     } else if (response.getStatus() != 200) {
-                        if ("/".equals(trialRestURI.getPath())) {
-                            throw new IOException("Cannot create rest file system, rc=" + response.getStatus());
-                        }
-                        trialRestURI = trialRestURI.resolve("..");
-
-                    } else {
-                        break;
+                        throw new IOException("Cannot create rest file system, rc=" + response.getStatus() + "uri="+testURI);
                     }
-                } catch (ProcessingException x) {
+            } catch (ProcessingException | IOException x) {
                     if (options.getCacheOptions() == RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK
                             && options.getCacheFallback() != RestFileSystemOptions.CacheFallback.NEVER) {
                         offline = true;
                         LOG.log(Level.WARNING, () -> String.format("Rest File server running in offline mode: %s (%s)", uri, x.getMessage()));
-                        break;
                     } else if (x instanceof ProcessingException) {
                         throw RestClient.convertProcessingException((ProcessingException) x);
                     } else {
@@ -116,7 +110,6 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
                     }
                 }
             }
-        }
         return trialRestURI;
     }
 
@@ -177,7 +170,7 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
-    public URI getURI(String path) {
+    URI getURI(String path) {
         return uri.resolve(path);
     }
     

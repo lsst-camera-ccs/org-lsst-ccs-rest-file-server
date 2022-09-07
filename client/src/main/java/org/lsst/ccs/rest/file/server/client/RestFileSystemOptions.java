@@ -1,6 +1,7 @@
 package org.lsst.ccs.rest.file.server.client;
 
 import java.io.File;
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,6 +22,8 @@ public class RestFileSystemOptions {
     public final static String CACHE_LOCATION = "CacheLocation";
     public final static String ALLOW_ALTERNATE_CACHE_LOCATION = "CacheFallbackLocation";
     public final static String AUTH_TOKEN = "JWTToken";
+    public final static String MOUNT_POINT = "MountPoint";
+
     /**
      * A system property which can be set to provide a default set of options if no explicit options are 
      * set and if none have been provided by <code>setDefaultFileSystemEnvironment</code> method. The value
@@ -85,6 +88,11 @@ public class RestFileSystemOptions {
         
         public Builder ignoreLockedCache(boolean allow) {
             map.put(ALLOW_ALTERNATE_CACHE_LOCATION, allow);
+            return this;            
+        }
+
+        public Builder mountPoint(URI mountPoint) {
+            map.put(MOUNT_POINT, mountPoint);
             return this;            
         }
         

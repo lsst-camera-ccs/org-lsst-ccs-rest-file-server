@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
@@ -20,6 +21,7 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
 
     private final Map<String, ?> env;
     private static final Logger LOG = Logger.getLogger(RestFileSystemOptionsHelper.class.getName());
+    private static final URI defaultMountPoint = URI.create(".");
 
     RestFileSystemOptionsHelper(Map<String, ?> env) {
         if (env == null) {
@@ -61,6 +63,19 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
             return Paths.get((String) result);
         } else {
             throw new IllegalArgumentException("Invalid value for option " + RestFileSystemOptions.CACHE_LOCATION + ": " + result);
+        }
+    }
+    
+    URI getMountPoint() {
+        Object result = env.get(RestFileSystemOptions.MOUNT_POINT);
+        if (result == null) {
+            return defaultMountPoint;
+        } else if (result instanceof URI) {
+            return (URI) result;
+        } else if (result instanceof String) {
+            return URI.create((String) result);
+        } else {
+            throw new IllegalArgumentException("Invalid value for option " + RestFileSystemOptions.MOUNT_POINT + ": " + result);
         }
     }
 
