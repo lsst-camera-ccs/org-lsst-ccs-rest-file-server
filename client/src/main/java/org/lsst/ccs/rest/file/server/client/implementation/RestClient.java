@@ -17,7 +17,6 @@ import java.nio.file.LinkOption;
 import java.nio.file.NotDirectoryException;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
@@ -58,14 +57,16 @@ class RestClient implements Closeable {
 
     private final Client client;
     private final URI restURI;
+    private final URI mountPoint;
 
-    RestClient(Client client, URI restURI) {
+    RestClient(Client client, URI restURI, URI mountPoint) {
         this.client = client;
         this.restURI = restURI;
+        this.mountPoint = mountPoint;
     }
 
     private URI getRestURI(String restPath, RestPath path) throws IOException {
-        return restURI.resolve(restPath).resolve(path.getRestPath());
+        return restURI.resolve(restPath).resolve(mountPoint.resolve(path.getRestPath()));
     }
 
     private WebTarget getRestTarget(String restPath, RestPath path) throws IOException {

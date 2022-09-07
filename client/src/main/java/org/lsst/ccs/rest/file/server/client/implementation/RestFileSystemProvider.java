@@ -39,6 +39,8 @@ import org.lsst.ccs.rest.file.server.client.VersionedFileAttributes;
 public class RestFileSystemProvider extends FileSystemProvider {
 
     private final static Map<String, Object> NO_ENV = Collections.<String, Object>emptyMap();
+    private static Map<String, ?> defaultEnvironment;
+
     private final Map<URI, RestFileSystem> cache = new ConcurrentHashMap<>();
 
     @Override
@@ -46,16 +48,23 @@ public class RestFileSystemProvider extends FileSystemProvider {
         return "ccs";
     }
 
+    public static void setDefaultFileSystemOption(Map<String, ?> defaultEnv) {
+        defaultEnvironment = defaultEnv;
+    }
+    
     @Override
     public FileSystem newFileSystem(URI uri, Map<String, ?> env) throws IOException {
         if (env == null) {
-            env = NO_ENV;
+            env = defaultEnvironment == null ? NO_ENV : defaultEnvironment;
         }
+        
+        URI restURI = RestFileSystem.getFullURI(uri, env);
+
         synchronized (cache) {
-            RestFileSystem result = cache.get(uri);
+            RestFileSystem result = cache.get(restURI);
             if (result == null) {
                 result = new RestFileSystem(RestFileSystemProvider.this, uri, env);
-                cache.put(uri, result);
+                cache.put(restURI, result);
                 return result;
             }
             throw new FileSystemAlreadyExistsException(uri.toString());
@@ -211,7 +220,9 @@ public class RestFileSystemProvider extends FileSystemProvider {
     }
 
     void dispose(URI uri) {
-        cache.remove(uri);
+        if ( cache.remove(uri) == null ) {
+            throw new RuntimeException("Something went wrong when closing file system "+uri+". The cache was not cleared and the possible values are: "+cache.keySet());
+        }
     }
 
 }

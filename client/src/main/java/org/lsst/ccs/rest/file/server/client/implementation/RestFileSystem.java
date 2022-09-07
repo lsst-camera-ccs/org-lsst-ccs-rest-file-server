@@ -30,7 +30,7 @@ import org.lsst.ccs.rest.file.server.client.implementation.unixlike.AbstractFile
  *
  * @author tonyj
  */
-class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
+public class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
 
     private static final Set<String> SUPPORTED_VIEWS = new HashSet<>();
 
@@ -46,11 +46,14 @@ class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
     private final Cache cache;
     private boolean offline = false;
     private static final Logger LOG = Logger.getLogger(RestFileSystem.class.getName());
+    private final URI mountPoint;
 
     public RestFileSystem(RestFileSystemProvider provider, URI uri, Map<String, ?> env) throws IOException {
         this.provider = provider;
-        this.uri = uri;
+        uri = uri.getPath().endsWith("/") ? uri : UriBuilder.fromUri(uri).path(uri.getPath()+"/").build();
         this.options = new RestFileSystemOptionsHelper(env);
+        mountPoint = options.getMountPoint();
+        this.uri = uri;
         Client client = ClientBuilder.newClient();
         final URI restURI = computeRestURI(client);
         if (options.getCacheOptions() != RestFileSystemOptions.CacheOptions.NONE) {
@@ -65,7 +68,7 @@ class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
         if (jwt != null) {
             client.register(new AddJWTTokenRequestFilter(jwt.toString()));
         }
-        restClient = new RestClient(client, restURI);
+        restClient = new RestClient(client, restURI, mountPoint);
     }
 
     private URI computeRestURI(Client client) throws IOException {
@@ -74,32 +77,32 @@ class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
         // Test if we can connect, handle redirects
         URI trialRestURI = UriBuilder.fromUri(uri).scheme(schema).build();
         if (useSSL == RestFileSystemOptions.SSLOptions.AUTO || options.getCacheFallback() == RestFileSystemOptions.CacheFallback.OFFLINE) {
-            URI testURI = trialRestURI.resolve("rest/list/");
-            try {
-                Response response = client.target(testURI).request(MediaType.APPLICATION_JSON).head();
-                if (response.getStatus() / 100 == 3) {
-                    String location = response.getHeaderString("Location");
-                    testURI = UriBuilder.fromUri(location).build();
-                    response = client.target(testURI).request(MediaType.APPLICATION_JSON).head();
-                    if (response.getStatus() != 200) {
-                        throw new IOException("Cannot create rest file system, rc=" + response.getStatus());
+                URI testURI = trialRestURI.resolve("rest/list/");
+                try {
+                    Response response = client.target(testURI).request(MediaType.APPLICATION_JSON).head();
+                    if (response.getStatus() / 100 == 3) {
+                        String location = response.getHeaderString("Location");
+                        testURI = UriBuilder.fromUri(location).build();
+                        response = client.target(testURI).request(MediaType.APPLICATION_JSON).head();
+                        if (response.getStatus() != 200) {
+                            throw new IOException("Cannot create rest file system, rc=" + response.getStatus() + "uri="+testURI);
+                        }
+                        trialRestURI = testURI.resolve("../..");
+                    } else if (response.getStatus() != 200) {
+                        throw new IOException("Cannot create rest file system, rc=" + response.getStatus() + "uri="+testURI);
                     }
-                    trialRestURI = testURI.resolve("../..");
-                } else if (response.getStatus() != 200) {
-                    throw new IOException("Cannot create rest file system, rc=" + response.getStatus());
-                }
             } catch (ProcessingException | IOException x) {
-                if (options.getCacheOptions() == RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK 
-                        && options.getCacheFallback() != RestFileSystemOptions.CacheFallback.NEVER) {
-                    offline = true;
-                    LOG.log(Level.WARNING, () -> String.format("Rest File server running in offline mode: %s (%s)", uri, x.getMessage()));
-                } else if (x instanceof ProcessingException) {
-                    throw RestClient.convertProcessingException((ProcessingException) x);
-                } else {
-                    throw x;
+                    if (options.getCacheOptions() == RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK
+                            && options.getCacheFallback() != RestFileSystemOptions.CacheFallback.NEVER) {
+                        offline = true;
+                        LOG.log(Level.WARNING, () -> String.format("Rest File server running in offline mode: %s (%s)", uri, x.getMessage()));
+                    } else if (x instanceof ProcessingException) {
+                        throw RestClient.convertProcessingException((ProcessingException) x);
+                    } else {
+                        throw x;
+                    }
                 }
             }
-        }
         return trialRestURI;
     }
 
@@ -114,7 +117,7 @@ class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
 
     @Override
     public void close() throws IOException {
-        provider.dispose(this.uri);
+        provider.dispose(getFullURI());
         restClient.close();
         if (cache != null) {
             cache.close();
@@ -163,5 +166,19 @@ class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
     URI getURI(String path) {
         return uri.resolve(path);
     }
-
+    
+    public URI getMountPoint() {
+        return mountPoint;
+    }
+    
+    URI getFullURI() {
+        return uri.resolve(mountPoint);
+    }
+    
+    static URI getFullURI(URI uri, Map<String,?> env) {
+        RestFileSystemOptionsHelper optionsHelper = new RestFileSystemOptionsHelper(env);        
+        URI restURI = uri.resolve(optionsHelper.getMountPoint());
+        return restURI;
+    }
+    
 }

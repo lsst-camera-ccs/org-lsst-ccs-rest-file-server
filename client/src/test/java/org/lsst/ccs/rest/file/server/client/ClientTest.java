@@ -21,7 +21,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.ws.rs.core.UriBuilder;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -268,7 +267,7 @@ public class ClientTest {
         assertEquals("test.file", path.getFileName().toString());
 
         // FIXME: Should be moved elsewhere, depends on external URL
-        URI uri = URI.create("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/newTest.properties");
+        URI uri = URI.create("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/test/test.properties");
         Path path2 = Paths.get(uri);
         System.out.println(path2.toUri());
         BasicFileAttributes bfa = Files.readAttributes(path2, BasicFileAttributes.class);
