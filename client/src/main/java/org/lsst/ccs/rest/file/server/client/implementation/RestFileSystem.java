@@ -106,6 +106,10 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
         return trialRestURI;
     }
 
+    Cache getCache() {
+        return cache;
+    }
+    
     RestClient getClient() {
         return restClient;
     }

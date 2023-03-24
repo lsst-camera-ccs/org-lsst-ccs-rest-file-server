@@ -121,6 +121,7 @@ class Cache implements Closeable {
         private Date lastModified;
         private String mediaType;
         private byte[] bytes;
+        private transient long lastUpdated;
 
         static final long serialVersionUID = 1521062449875932852L;
 
@@ -145,6 +146,7 @@ class Cache implements Closeable {
             out.close();
             bytes = out.toByteArray();
             response.setEntityStream(new ByteArrayInputStream(bytes));
+            lastUpdated = System.currentTimeMillis();
         }
 
         boolean isExpired() {
@@ -168,8 +170,13 @@ class Cache implements Closeable {
         }
 
         void updateCacheHeaders(ClientResponseContext response) {
+            lastUpdated = System.currentTimeMillis();
             tag = response.getEntityTag() == null ? null : response.getEntityTag().toString();
             lastModified = response.getLastModified();
+        }
+        
+        long getLastUpdated() {
+            return lastUpdated;
         }
 
     }

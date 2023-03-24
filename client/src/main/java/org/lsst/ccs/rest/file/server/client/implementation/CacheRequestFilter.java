@@ -40,7 +40,7 @@ class CacheRequestFilter implements ClientRequestFilter {
             return;
         }
 
-        if (!entry.isExpired() || cacheOption.compareTo(RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE) >=0 ) {
+        if (!entry.isExpired() || (cacheOption == RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE || cacheOption == RestFileSystemOptions.CacheFallback.ALWAYS) ) {
             ByteArrayInputStream is = new ByteArrayInputStream(entry.getContent());
             Response response = Response.ok(is).type(entry.getContentType()).build();
             ctx.abortWith(response);
