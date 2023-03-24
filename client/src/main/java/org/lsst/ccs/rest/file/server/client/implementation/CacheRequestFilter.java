@@ -6,6 +6,7 @@ import java.util.Date;
 import javax.ws.rs.client.ClientRequestContext;
 import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.core.Response;
+import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
 import org.lsst.ccs.rest.file.server.client.implementation.Cache.CacheEntry;
 
 /**
@@ -15,17 +16,17 @@ import org.lsst.ccs.rest.file.server.client.implementation.Cache.CacheEntry;
 class CacheRequestFilter implements ClientRequestFilter {
 
     private final Cache cache;
-    private final boolean cacheOnly;
+    private final RestFileSystemOptions.CacheFallback cacheOption;
 
-    CacheRequestFilter(Cache cache, boolean cacheOnly) {
+    CacheRequestFilter(Cache cache, RestFileSystemOptions.CacheFallback cacheOption) {
         this.cache = cache;
-        this.cacheOnly = cacheOnly;
+        this.cacheOption = cacheOption;
     }
 
     @Override
     public void filter(ClientRequestContext ctx) throws IOException {
         if (!ctx.getMethod().equalsIgnoreCase("GET")) {
-            if (cacheOnly) {
+            if (cacheOption == RestFileSystemOptions.CacheFallback.ALWAYS) {
                 throw new OfflineException("Illegal method " + ctx.getMethod() + " for offline cache");
             }
             return;
@@ -33,13 +34,13 @@ class CacheRequestFilter implements ClientRequestFilter {
 
         CacheEntry entry = cache.getEntry(ctx.getUri());
         if (entry == null) {
-            if (cacheOnly) {
+            if (cacheOption == RestFileSystemOptions.CacheFallback.ALWAYS) {
                 throw new OfflineException("Read of non-cached item in offline mode " + ctx.getUri());
             }
             return;
         }
 
-        if (!entry.isExpired() || cacheOnly) {
+        if (!entry.isExpired() || (cacheOption == RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE || cacheOption == RestFileSystemOptions.CacheFallback.ALWAYS) ) {
             ByteArrayInputStream is = new ByteArrayInputStream(entry.getContent());
             Response response = Response.ok(is).type(entry.getContentType()).build();
             ctx.abortWith(response);
