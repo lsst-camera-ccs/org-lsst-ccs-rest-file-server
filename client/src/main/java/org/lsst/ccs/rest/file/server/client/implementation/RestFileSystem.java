@@ -58,7 +58,7 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
         final URI restURI = computeRestURI(client);
         if (options.getCacheOptions() != RestFileSystemOptions.CacheOptions.NONE) {
             cache = new Cache(options);
-            client.register(new CacheRequestFilter(cache, offline || options.getCacheFallback() == RestFileSystemOptions.CacheFallback.ALWAYS));
+            client.register(new CacheRequestFilter(cache, offline ? RestFileSystemOptions.CacheFallback.ALWAYS : options.getCacheFallback()));
             client.register(new CacheResponseFilter(cache));
         } else {
             cache = null;
@@ -76,7 +76,7 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
         String schema = useSSL == RestFileSystemOptions.SSLOptions.TRUE ? "https" : "http";
         // Test if we can connect, handle redirects
         URI trialRestURI = UriBuilder.fromUri(uri).scheme(schema).build();
-        if (useSSL == RestFileSystemOptions.SSLOptions.AUTO || options.getCacheFallback() == RestFileSystemOptions.CacheFallback.OFFLINE) {
+        if (useSSL == RestFileSystemOptions.SSLOptions.AUTO || (options.getCacheFallback() == RestFileSystemOptions.CacheFallback.OFFLINE || options.getCacheFallback() == RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE)) {
                 URI testURI = trialRestURI.resolve("rest/list/");
                 try {
                     Response response = client.target(testURI).request(MediaType.APPLICATION_JSON).head();
