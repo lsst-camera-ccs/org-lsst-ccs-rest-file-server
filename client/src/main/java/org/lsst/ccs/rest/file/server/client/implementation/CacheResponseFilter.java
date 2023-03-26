@@ -9,7 +9,9 @@ import javax.ws.rs.core.Response;
 import org.lsst.ccs.rest.file.server.client.implementation.Cache.CacheEntry;
 
 /**
- *
+ * A filter applied to responses from the server. Fetches the data from the cache
+ * if the server responds that it is up-to-date. The cache is used for all responses
+ * from the server, including directory listings and file info.
  * @author tonyj
  */
 class CacheResponseFilter implements ClientResponseFilter {
@@ -31,6 +33,7 @@ class CacheResponseFilter implements ClientResponseFilter {
         if (response.getStatus() == Response.Status.OK.getStatusCode()) {
             cache.cacheResponse(response, request.getUri());
         } else if (response.getStatus() == Response.Status.NOT_MODIFIED.getStatusCode()) {
+            // Use the cache
             CacheEntry entry = cache.getEntry(request.getUri());
             entry.updateCacheHeaders(response);
             response.getHeaders().clear();

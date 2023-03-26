@@ -121,6 +121,7 @@ class Cache implements Closeable {
         private Date lastModified;
         private String mediaType;
         private byte[] bytes;
+        private volatile int updateCount = 0;
 
         static final long serialVersionUID = 1521062449875932852L;
 
@@ -147,6 +148,14 @@ class Cache implements Closeable {
             response.setEntityStream(new ByteArrayInputStream(bytes));
         }
 
+        /**
+         * Expired indicates that the cache entry should be checked for freshness before
+         * use. The current implementation always returns true, meaning we always go back to
+         * the server (if it is online) to check that the cache entry is up-to-date. It would
+         * be possible to return false if the cache was recently created/updated, to reduce the need
+         * to constantly check the freshness of the cache if the same data is read repeatedly.
+         * @return <code>true</code> if the cache entry should be checked.
+         */
         boolean isExpired() {
             return true;
         }
@@ -167,10 +176,18 @@ class Cache implements Closeable {
             return lastModified;
         }
 
+        /** 
+         * Called when the cache entry has been checked, and found to be up-to-date.
+         * @param response The server response, used to extract the eTag and lastModified date.
+         */
         void updateCacheHeaders(ClientResponseContext response) {
             tag = response.getEntityTag() == null ? null : response.getEntityTag().toString();
             lastModified = response.getLastModified();
+            updateCount++;
         }
 
+        int getUpdateCount() {
+            return updateCount;
+        }
     }
 }

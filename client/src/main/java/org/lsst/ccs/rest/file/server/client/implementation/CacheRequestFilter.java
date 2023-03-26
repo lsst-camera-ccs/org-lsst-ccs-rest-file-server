@@ -9,14 +9,22 @@ import javax.ws.rs.core.Response;
 import org.lsst.ccs.rest.file.server.client.implementation.Cache.CacheEntry;
 
 /**
- *
+ * A filter applied to requests to allow responses to be cached using standard
+ * http caching. Caching is only applied to GET requests.
  * @author tonyj
+ * @see CacheResponseFilter
  */
 class CacheRequestFilter implements ClientRequestFilter {
 
     private final Cache cache;
     private final boolean cacheOnly;
 
+    /**
+     * Create a new CacheRequestFilter.
+     * @param cache The cache to use
+     * @param cacheOnly <code>true</code> if requests should be forced to come from the cache
+     * without checking their freshness, e.g. if the server is known to be offline.
+     */
     CacheRequestFilter(Cache cache, boolean cacheOnly) {
         this.cache = cache;
         this.cacheOnly = cacheOnly;
@@ -46,6 +54,7 @@ class CacheRequestFilter implements ClientRequestFilter {
             return;
         }
 
+        // If the entry is expired, we go back to the server to request a check on the freshness of the data.
         String etag = entry.getETagHeader();
         Date lastModified = entry.getLastModified();
 
