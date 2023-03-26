@@ -23,8 +23,14 @@ public class SpeedTest {
                 .cacheLocation(tempDir)
                 .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
                 .set(RestFileSystemOptions.CacheFallback.OFFLINE)
+                .set(RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE)
                 .build();
+        
         FileSystem restfs = FileSystems.newFileSystem(uri, env);
+
+        Path pathInRestServer0 = restfs.getPath("dictionaries/data/DemoConfigurableSubsystem/1797891750.ser");
+        readFile(pathInRestServer0);
+
         Path pathInRestServer = restfs.getPath("dictionaries/data/FocalPlane/3702060141.ser");
         readFile(pathInRestServer);
         // Second time should come from cache

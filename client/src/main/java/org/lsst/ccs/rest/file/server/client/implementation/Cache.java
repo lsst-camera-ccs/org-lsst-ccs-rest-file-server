@@ -185,7 +185,7 @@ class Cache implements Closeable {
             lastModified = response.getLastModified();
             updateCount++;
         }
-
+        
         int getUpdateCount() {
             return updateCount;
         }
