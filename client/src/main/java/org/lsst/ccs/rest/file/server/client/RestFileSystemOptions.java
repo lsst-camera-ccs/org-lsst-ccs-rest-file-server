@@ -37,7 +37,7 @@ public class RestFileSystemOptions {
     };
 
     public enum CacheFallback {
-        NEVER, OFFLINE, ALWAYS
+        NEVER, OFFLINE, ALWAYS, WHEN_POSSIBLE;
     };
     
     public enum SSLOptions {

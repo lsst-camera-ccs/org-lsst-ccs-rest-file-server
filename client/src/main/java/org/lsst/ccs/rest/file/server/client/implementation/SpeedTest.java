@@ -1,4 +1,4 @@
-package org.lsst.ccs.rest.file.server.client.examples;
+package org.lsst.ccs.rest.file.server.client.implementation;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,16 +24,29 @@ public class SpeedTest {
                 .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
                 .set(RestFileSystemOptions.CacheFallback.OFFLINE)
                 .build();
+
         FileSystem restfs = FileSystems.newFileSystem(uri, env);
         Path pathInRestServer = restfs.getPath("dictionaries/data/FocalPlane/3702060141.ser");
         readFile(pathInRestServer);
         // Second time should come from cache
         readFile(pathInRestServer);
 
+        ((RestFileSystem)restfs).getCache().setCacheFallbackOption(RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE);
+        // Now it should come from cache without trips to the remote server
+        readFile(pathInRestServer);
+
+        ((RestFileSystem)restfs).getCache().setCacheFallbackOption(RestFileSystemOptions.CacheFallback.ALWAYS);
         Path pathInRestServer2 = restfs.getPath("dictionaries/command/FocalPlane/846244239.ser");
         readFile(pathInRestServer2);
         // Second time should come from cache
         readFile(pathInRestServer2);
+
+        ((RestFileSystem)restfs).getCache().setCacheFallbackOption(RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE);
+        // Now it should come from cache without trips to the remote server
+        readFile(pathInRestServer2);
+        
+
+        
     }
 
     private static void readFile(Path pathInRestServer) throws IOException {
