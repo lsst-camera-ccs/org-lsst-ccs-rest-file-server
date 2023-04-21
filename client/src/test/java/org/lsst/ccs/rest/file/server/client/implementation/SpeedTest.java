@@ -8,7 +8,10 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import org.junit.Assert;
+import org.junit.Test;
 import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
+import org.lsst.ccs.rest.file.server.client.implementation.RestFileSystem;
 
 /**
  *
@@ -16,7 +19,8 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
  */
 public class SpeedTest {
 
-    public static void main(String[] args) throws IOException {
+    @Test
+    public void testSpeed() throws IOException {
         final Path tempDir = Files.createTempDirectory("rfs");
         URI uri = URI.create("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/");
         Map<String, Object> env = RestFileSystemOptions.builder()
@@ -27,29 +31,39 @@ public class SpeedTest {
 
         FileSystem restfs = FileSystems.newFileSystem(uri, env);
         Path pathInRestServer = restfs.getPath("dictionaries/data/FocalPlane/3702060141.ser");
-        readFile(pathInRestServer);
+        long time1 = readFile(pathInRestServer);
         // Second time should come from cache
-        readFile(pathInRestServer);
+        long time2 = readFile(pathInRestServer);
+        Assert.assertTrue(time2<time1);
 
         ((RestFileSystem)restfs).getCache().setCacheFallbackOption(RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE);
         // Now it should come from cache without trips to the remote server
-        readFile(pathInRestServer);
+        long time3 = readFile(pathInRestServer);
+        Assert.assertTrue(time3<time2);
 
-        ((RestFileSystem)restfs).getCache().setCacheFallbackOption(RestFileSystemOptions.CacheFallback.ALWAYS);
         Path pathInRestServer2 = restfs.getPath("dictionaries/command/FocalPlane/846244239.ser");
-        readFile(pathInRestServer2);
-        // Second time should come from cache
-        readFile(pathInRestServer2);
-
-        ((RestFileSystem)restfs).getCache().setCacheFallbackOption(RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE);
+        long time4 = readFile(pathInRestServer2);
+        //The second file is smaller, so it should take less than the first file
+        Assert.assertTrue(time4<time1);
+        
         // Now it should come from cache without trips to the remote server
-        readFile(pathInRestServer2);
+        long time5 = readFile(pathInRestServer2);
+        Assert.assertTrue(time5<time4);
+
+        ((RestFileSystem)restfs).getCache().setCacheFallbackOption(RestFileSystemOptions.CacheFallback.OFFLINE);
+        // This time it should still come from the cache, but with round trips to the server,
+        // so it should be slower than the previous result.
+        long time6 = readFile(pathInRestServer2);
+        //Since there are trip to the server, this time should be longer than
+        //the previous with trips.
+        Assert.assertTrue(time5<time6);
+        Assert.assertTrue(time6<time4);
         
 
         
     }
 
-    private static void readFile(Path pathInRestServer) throws IOException {
+    private static long readFile(Path pathInRestServer) throws IOException {
         byte[] buffer = new byte[32768];
         int length = 0;
         long start = System.currentTimeMillis();
@@ -63,6 +77,8 @@ public class SpeedTest {
             }
         }
         long stop = System.currentTimeMillis();
-        System.out.printf("Read %d bytes in %dms\n", length, stop - start);
+        long delta = stop - start;
+        System.out.printf("Read %d bytes in %dms\n", length, delta);
+        return delta;
     }
 }
