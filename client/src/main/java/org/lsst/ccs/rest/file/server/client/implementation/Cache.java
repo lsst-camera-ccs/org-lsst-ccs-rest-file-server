@@ -33,6 +33,7 @@ class Cache implements Closeable {
 
     private CacheAccess<URI, CacheEntry> map;
     private FileLock lock;
+    private RestFileSystemOptions.CacheFallback cacheFallback;
 
     Cache(RestFileSystemOptionsHelper options) throws IOException {
 
@@ -86,11 +87,24 @@ class Cache implements Closeable {
         }
         CompositeCacheManager ccm = CompositeCacheManager.getUnconfiguredInstance();
         ccm.configure(props);
-        map = JCS.getInstance("default");
+        map = JCS.getInstance("default");        
+        this.cacheFallback = options.getCacheFallback();
     }
 
+    void setCacheFallbackOption(RestFileSystemOptions.CacheFallback cacheFallback) {
+        this.cacheFallback = cacheFallback;
+    }
+    
+    boolean doEntriesExpire() {
+        return cacheFallback != RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE;
+    }
+    
     CacheEntry getEntry(URI uri) {
-        return map.get(uri);
+        CacheEntry e = map.get(uri);
+        if ( e != null ) {
+            e.setIsExpired(doEntriesExpire());
+        }
+        return e;
     }
 
     void cacheResponse(ClientResponseContext response, URI uri) throws IOException {
@@ -122,6 +136,7 @@ class Cache implements Closeable {
         private String mediaType;
         private byte[] bytes;
         private volatile int updateCount = 0;
+        private boolean isExpired = true;
 
         static final long serialVersionUID = 1521062449875932852L;
 
@@ -157,7 +172,11 @@ class Cache implements Closeable {
          * @return <code>true</code> if the cache entry should be checked.
          */
         boolean isExpired() {
-            return true;
+            return isExpired;
+        }
+        
+        void setIsExpired(boolean isExpired) {
+            this.isExpired = isExpired;
         }
 
         byte[] getContent() {

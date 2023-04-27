@@ -31,14 +31,23 @@ import org.lsst.ccs.web.rest.file.server.TestServer;
 public class CachingTest {
 
     @Test
-    public void cacheTest() throws URISyntaxException, IOException, InterruptedException {
-        TestServer testServer = new TestServer(9997);
+    public void cacheTest()  throws URISyntaxException, IOException, InterruptedException {
+        cacheTest(9997, RestFileSystemOptions.CacheFallback.OFFLINE);
+    }
+
+    @Test
+    public void cacheTestWhenPossible()  throws URISyntaxException, IOException, InterruptedException {
+        cacheTest(9996, RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE);
+    }
+
+    public void cacheTest(int port, RestFileSystemOptions.CacheFallback cacheMode) throws URISyntaxException, IOException, InterruptedException {
+        TestServer testServer = new TestServer(port);
         URI restRootURI = UriBuilder.fromUri(testServer.getServerURI()).scheme("ccs").build();
         final Path tempDir = Files.createTempDirectory("rfs");
         Map<String, Object> env = RestFileSystemOptions.builder()
                 .cacheLocation(tempDir)
                 .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
-                .set(RestFileSystemOptions.CacheFallback.OFFLINE)
+                .set(cacheMode)
                 .build();
 
         final String content = "I wlll be cached!";
@@ -62,7 +71,8 @@ public class CachingTest {
             
             // Read again, this time should use the cache
             listAndRead(pathInRestServer, content, 1);
-            assertEquals(1, e.getUpdateCount());
+            // Wen using WHEN_POSSIBLE, cache is never updated
+            assertEquals(cacheMode == RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE ? 0 : 1, e.getUpdateCount());
             
             // Change the file, and make sure things still work as expected
             // Note, the file cache uses "lastModified" timestamps, which are only accurate to 1 second
@@ -71,28 +81,32 @@ public class CachingTest {
             try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer, StandardOpenOption.TRUNCATE_EXISTING)) {
                 writer.append(content + content);
             }
-            listAndRead(pathInRestServer, content + content, 1);
+            // Note, when using WHEN_POSSIBLE we always get the old file contents
+            String expectedContents = cacheMode == RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE ? content : content+content;
+            listAndRead(pathInRestServer, expectedContents, 1);
             // Note, cache entry will have changed, so need to refetch it
             e = cache.getEntry(fileUri);
             assertNotNull(e);
             assertEquals(0, e.getUpdateCount());
 
             // Read again, this time should use the cache
-            listAndRead(pathInRestServer, content + content, 1);
-            assertEquals(1, e.getUpdateCount());
-
+            listAndRead(pathInRestServer, expectedContents, 1);
+            assertEquals(cacheMode == RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE ? 0 : 1, e.getUpdateCount());
+            
             Path pathInRestServer2 = restfs.getPath(fileName + "2");
             // Create a new file, and make sure the directory listing shows it
             try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer2)) {
                 writer.append(content + content);
             }
-            listAndRead(pathInRestServer, content + content, 2);
+            // Note, when using WHEN_POSSIBLE, the directory listing will be out of date
+            int expectedDirectorySize = cacheMode == RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE ? 1 : 2;
+            listAndRead(pathInRestServer, expectedContents, expectedDirectorySize);
             // In this case cache entry will not have changed, so no need to refetch it.
-            assertEquals(2, e.getUpdateCount());
+            assertEquals(cacheMode == RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE ? 0 : 2, e.getUpdateCount());
             
             // Read again, this time should use the cache
-            listAndRead(pathInRestServer, content + content, 2);
-            assertEquals(3, e.getUpdateCount());
+            listAndRead(pathInRestServer, expectedContents, expectedDirectorySize);
+            assertEquals(cacheMode == RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE ? 0 : 3, e.getUpdateCount());
         }
     }
 
