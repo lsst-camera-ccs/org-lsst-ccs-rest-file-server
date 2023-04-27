@@ -272,6 +272,8 @@ public class ClientTest {
         System.out.println(path2.toUri());
         BasicFileAttributes bfa = Files.readAttributes(path2, BasicFileAttributes.class);
         System.out.println(bfa.isOther());
+        FileSystem fs = FileSystems.getFileSystem(URI.create("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/"));
+        fs.close();
     }
 
 //    @Test 

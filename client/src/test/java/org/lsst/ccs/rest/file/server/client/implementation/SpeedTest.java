@@ -11,7 +11,6 @@ import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
-import org.lsst.ccs.rest.file.server.client.implementation.RestFileSystem;
 
 /**
  *
@@ -58,7 +57,7 @@ public class SpeedTest {
         //the previous with trips.
         Assert.assertTrue(time5<time6);
         Assert.assertTrue(time6<time4);
-        
+        restfs.close();
 
         
     }

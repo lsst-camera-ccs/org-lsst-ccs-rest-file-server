@@ -93,6 +93,7 @@ public class RelativePathTest {
         rfs = (RestFileSystem) FileSystems.newFileSystem(new URI("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/"), env);
 
         Assert.assertEquals("Current mount point: " + rfs.getMountPoint() + " but expected \"config\"", "config/", rfs.getMountPoint().toString());
+        rfs.close();
     }
     
     
