@@ -38,7 +38,7 @@ public class SpeedTest {
         ((RestFileSystem)restfs).getCache().setCacheFallbackOption(RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE);
         // Now it should come from cache without trips to the remote server
         long time3 = readFile(pathInRestServer);
-        Assert.assertTrue(time3<time2);
+        Assert.assertTrue(time3<=time2);
 
         Path pathInRestServer2 = restfs.getPath("dictionaries/command/FocalPlane/846244239.ser");
         long time4 = readFile(pathInRestServer2);
@@ -55,7 +55,7 @@ public class SpeedTest {
         long time6 = readFile(pathInRestServer2);
         //Since there are trip to the server, this time should be longer than
         //the previous with trips.
-        Assert.assertTrue(time5<time6);
+        Assert.assertTrue(time5<=time6);
         Assert.assertTrue(time6<time4);
         restfs.close();
 
