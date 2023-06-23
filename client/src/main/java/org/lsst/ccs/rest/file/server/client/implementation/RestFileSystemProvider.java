@@ -4,6 +4,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLStreamHandler;
+import java.net.URLStreamHandlerFactory;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.AccessMode;
 import java.nio.file.CopyOption;
@@ -65,6 +69,10 @@ public class RestFileSystemProvider extends FileSystemProvider {
             if (result == null) {
                 result = new RestFileSystem(RestFileSystemProvider.this, uri, env);
                 cache.put(restURI, result);
+
+                //See https://jira.slac.stanford.edu/browse/LSSTCCS-2796
+                URL.setURLStreamHandlerFactory( new CCSCustomStreamHandlerFactory() );
+
                 return result;
             }
             throw new FileSystemAlreadyExistsException(uri.toString());
@@ -224,5 +232,43 @@ public class RestFileSystemProvider extends FileSystemProvider {
             throw new RuntimeException("Something went wrong when closing file system "+uri+". The cache was not cleared and the possible values are: "+cache.keySet());
         }
     }
+    
+    public static class CCSCustomStreamHandlerFactory implements URLStreamHandlerFactory {
+
+        @Override
+        public URLStreamHandler createURLStreamHandler(String protocol) {
+            if ( protocol.equals("ccs") ) {
+                return new CCSCustomURLStreamHandler();
+                
+            }
+            return null;
+        }
+        
+    }
+    
+    public static class CCSCustomURLStreamHandler extends URLStreamHandler {
+
+        @Override
+        protected URLConnection openConnection(URL u) throws IOException {
+            return new CCSCustomURLConnection(u);
+        }
+        
+    }
+    
+    public static class CCSCustomURLConnection extends URLConnection {
+
+        CCSCustomURLConnection(URL u) {
+            super(u);
+        }
+        
+        @Override
+        public void connect() throws IOException {
+            //TO-DO: Implement this method.
+        }
+        
+    }
+    
+    
+    
 
 }
