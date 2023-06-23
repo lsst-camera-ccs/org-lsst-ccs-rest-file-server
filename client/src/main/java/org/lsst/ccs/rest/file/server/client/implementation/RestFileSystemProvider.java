@@ -71,7 +71,11 @@ public class RestFileSystemProvider extends FileSystemProvider {
                 cache.put(restURI, result);
 
                 //See https://jira.slac.stanford.edu/browse/LSSTCCS-2796
-                URL.setURLStreamHandlerFactory( new CCSCustomStreamHandlerFactory() );
+                try {
+                    URL.setURLStreamHandlerFactory( new CCSCustomStreamHandlerFactory() );
+                } catch (Error e) {
+                    //In case the protocol is registered twice.
+                }
 
                 return result;
             }
