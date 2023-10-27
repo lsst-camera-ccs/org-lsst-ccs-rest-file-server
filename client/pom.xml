@@ -75,6 +75,11 @@
             <artifactId>commons-jcs3-core</artifactId>
             <version>3.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.lsst</groupId>
+            <artifactId>org-lsst-ccs-utilities</artifactId>
+            <version>2.1.32-SNAPSHOT</version>
+        </dependency>
     </dependencies>
     
     <build>

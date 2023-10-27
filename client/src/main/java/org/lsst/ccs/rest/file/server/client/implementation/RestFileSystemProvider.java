@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.ws.rs.core.UriBuilder;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributeView;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributes;
+import org.lsst.ccs.utilities.misc.ExtendableURLStreamHandlerFactory;
 
 /**
  * Implementation of FileSystemProvider for a CCS rest file ser
@@ -71,12 +72,17 @@ public class RestFileSystemProvider extends FileSystemProvider {
                 cache.put(restURI, result);
 
                 //See https://jira.slac.stanford.edu/browse/LSSTCCS-2796
+//                try {
+//                    URL.setURLStreamHandlerFactory( new CCSCustomStreamHandlerFactory() );
+//                } catch (Error e) {
+//                    //In case the protocol is registered twice.
+//                }
                 try {
-                    URL.setURLStreamHandlerFactory( new CCSCustomStreamHandlerFactory() );
-                } catch (Error e) {
+                    ExtendableURLStreamHandlerFactory.add(new CCSCustomStreamHandlerFactory());
+                } catch (IllegalStateException e) {
                     //In case the protocol is registered twice.
                 }
-
+                
                 return result;
             }
             throw new FileSystemAlreadyExistsException(uri.toString());
