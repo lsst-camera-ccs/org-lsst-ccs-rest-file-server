@@ -70,19 +70,12 @@ public class RestFileSystemProvider extends FileSystemProvider {
             if (result == null) {
                 result = new RestFileSystem(RestFileSystemProvider.this, uri, env);
                 cache.put(restURI, result);
-
-                //See https://jira.slac.stanford.edu/browse/LSSTCCS-2796
-//                try {
-//                    URL.setURLStreamHandlerFactory( new CCSCustomStreamHandlerFactory() );
-//                } catch (Error e) {
-//                    //In case the protocol is registered twice.
-//                }
+                //See https://jira.slac.stanford.edu/browse/LSSTCCS-2796 ; also LSSTCCS-2836
                 try {
                     ExtendableURLStreamHandlerFactory.add(new CCSCustomStreamHandlerFactory());
                 } catch (IllegalStateException e) {
                     //In case the protocol is registered twice.
                 }
-                
                 return result;
             }
             throw new FileSystemAlreadyExistsException(uri.toString());
