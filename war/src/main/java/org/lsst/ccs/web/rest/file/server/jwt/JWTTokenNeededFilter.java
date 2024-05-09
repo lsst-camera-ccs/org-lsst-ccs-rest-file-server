@@ -35,8 +35,6 @@ public class JWTTokenNeededFilter implements ContainerRequestFilter {
     @Override
     public void filter(ContainerRequestContext requestContext) throws IOException {
         
-        
-        
         if (ALLOWED_IPS_PATTERN != null) {
             String remoteIp = httpServletRequest.getRemoteAddr();
             String forwardedFor = httpServletRequest.getHeader("X-FORWARDED-FOR");
