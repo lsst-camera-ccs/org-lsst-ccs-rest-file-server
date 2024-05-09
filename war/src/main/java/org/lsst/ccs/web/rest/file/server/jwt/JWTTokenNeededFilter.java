@@ -4,6 +4,8 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Priority;
 import javax.servlet.http.HttpServletRequest;
@@ -32,9 +34,23 @@ public class JWTTokenNeededFilter implements ContainerRequestFilter {
 
     @Override
     public void filter(ContainerRequestContext requestContext) throws IOException {
-
-        if (ALLOWED_IPS_PATTERN != null && ALLOWED_IPS_PATTERN.matcher(httpServletRequest.getRemoteAddr()).matches()) {
-            return;
+        
+        
+        
+        if (ALLOWED_IPS_PATTERN != null) {
+            String remoteIp = httpServletRequest.getRemoteAddr();
+            String forwardedFor = httpServletRequest.getHeader("X-FORWARDED-FOR");
+            if ( forwardedFor != null ) {
+                String[] ipChain = forwardedFor.split(",");
+                if ( ipChain.length > 0 ) {
+                    remoteIp = ipChain[0].trim();
+                }
+            }
+            if ( ALLOWED_IPS_PATTERN.matcher(remoteIp).matches() ) {
+                return;
+            } else {
+                LOG.log(Level.INFO, "Remote IP {0} could not be allowed against {1}", new Object[] {remoteIp,allowedIPs});
+            }
         }
 
         // Get the HTTP Authorization header from the request
@@ -57,4 +73,5 @@ public class JWTTokenNeededFilter implements ContainerRequestFilter {
             }
         }
     }
+    private static final Logger LOG = Logger.getLogger(JWTTokenNeededFilter.class.getName());
 }
