@@ -76,7 +76,7 @@ public class RelativePathTest {
     @Test
     public void shouldFailTest() throws IOException, URISyntaxException {
         try {
-            FileSystems.newFileSystem(new URI("ccs://lsst-camera.slac.stanford.edu/RestFileServer"), Collections.<String, Object>emptyMap());
+            FileSystems.newFileSystem(new URI("ccs://lsst-camera-bogus.slac.stanford.edu/RestFileServer"), Collections.<String, Object>emptyMap());
             fail("Should not get here");
         } catch (IOException x) {
             // Expected
