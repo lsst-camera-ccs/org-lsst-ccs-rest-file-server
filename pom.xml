@@ -36,7 +36,7 @@
     <scm>
         <url>https://github.com/lsst-camera-ccs/org-lsst-ccs-rest-file-server</url>
         <connection>scm:git:git://github.com/lsst-camera-ccs/org-lsst-ccs-rest-file-server.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/lsst-camera-ccs/org-lsst-ccs-rest-file-server.git</developerConnection>
+        <developerConnection>scm:git:https://${env.GIT_USERNAME}:${env.GIT_PASSWORD}@github.com/lsst-camera-ccs/org-lsst-ccs-rest-file-server.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
 
@@ -86,3 +86,4 @@
     </dependencyManagement>
 
 </project>
+
