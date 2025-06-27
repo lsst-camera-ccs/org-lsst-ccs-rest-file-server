@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ws.rs.ProcessingException;
@@ -54,7 +55,7 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
         this.options = new RestFileSystemOptionsHelper(env);
         mountPoint = options.getMountPoint();
         this.uri = uri;
-        Client client = ClientBuilder.newClient();
+        Client client = ClientBuilder.newBuilder().readTimeout(3, TimeUnit.SECONDS).connectTimeout(3, TimeUnit.SECONDS).build();
         final URI restURI = computeRestURI(client);
         if (options.getCacheOptions() != RestFileSystemOptions.CacheOptions.NONE) {
             cache = new Cache(options);
