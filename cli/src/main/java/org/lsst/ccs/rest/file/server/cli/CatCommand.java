@@ -17,7 +17,12 @@ import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
 /**
- * Simple cat command for use with rest server
+ * Command that reads or writes a file on the REST file server.
+ * <p>
+ * When run without options the file identified by {@code path} is written to
+ * standard output. With {@code --create} or {@code --versioned} the command
+ * reads from standard input to create a new file.
+ *
  * @author tonyj
  */
 @Command(name = "cat", description = "Write the contents of a file to standard output")
@@ -41,7 +46,14 @@ public class CatCommand implements Callable<Void> {
     
     @Spec CommandSpec spec;
 
-    @Override   
+    @Override
+    /**
+     * Executes the cat command.
+     *
+     * @return {@code null} always
+     * @throws IOException if an I/O error occurs while reading or writing the
+     *         file
+     */
     public Void call() throws IOException {
         try (FileSystem restfs = parent.createFileSystem()) {
             Path restPath = restfs.getPath(path);

@@ -16,7 +16,9 @@ import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
 /**
- * Simple cat command for use with rest server
+ * Command that modifies attributes of a versioned file on the REST file
+ * server.
+ *
  * @author tonyj
  */
 @Command(name = "set", description = "Modify settings on a versioned file")
@@ -43,7 +45,13 @@ public class SetCommand implements Callable<Void> {
     
     @Spec CommandSpec spec;
 
-    @Override   
+    @Override
+    /**
+     * Executes the set command.
+     *
+     * @return {@code null} always
+     * @throws IOException if an I/O error occurs while updating the file
+     */
     public Void call() throws IOException {
         try (FileSystem restfs = parent.createFileSystem()) {
             Path restPath = restfs.getPath(path);

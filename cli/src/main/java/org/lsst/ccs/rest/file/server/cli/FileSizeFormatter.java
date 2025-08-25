@@ -1,7 +1,8 @@
 package org.lsst.ccs.rest.file.server.cli;
 
 /**
- * A formatter for file size. tries to emulate ls
+ * Formats file sizes in a style similar to the Unix {@code ls} command.
+ *
  * @author tonyj
  */
 public class FileSizeFormatter {
@@ -9,14 +10,26 @@ public class FileSizeFormatter {
     private final boolean humanReadable;
     private final boolean si;
 
+    /**
+     * Creates a formatter.
+     *
+     * @param humanReadable whether to use human readable units
+     * @param si if {@code true}, use powers of 1000; otherwise use 1024
+     */
     FileSizeFormatter(boolean humanReadable, boolean si) {
         this.humanReadable = humanReadable;
         this.si = si;
     }
-    
+
+    /**
+     * Formats the supplied size.
+     *
+     * @param size the size in bytes
+     * @return a string representation of the size
+     */
     String format(long size) {
         if (humanReadable) {
-            return humanReadableByteCount(size, si); 
+            return humanReadableByteCount(size, si);
         } else {
             return String.format("%d", size);
         }

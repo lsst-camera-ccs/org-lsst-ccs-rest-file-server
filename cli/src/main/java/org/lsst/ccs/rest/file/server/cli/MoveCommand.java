@@ -10,7 +10,7 @@ import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParentCommand;
 
 /**
- * Simple cat command for use with rest server
+ * Command that moves or renames a file or directory on the REST file server.
  *
  * @author tonyj
  */
@@ -27,6 +27,12 @@ public class MoveCommand implements Callable<Void> {
     private String to;
 
     @Override
+    /**
+     * Executes the move command.
+     *
+     * @return {@code null} always
+     * @throws IOException if an error occurs moving the file
+     */
     public Void call() throws IOException {
         try (FileSystem restfs = parent.createFileSystem()) {
             Path fromPath = restfs.getPath(from);

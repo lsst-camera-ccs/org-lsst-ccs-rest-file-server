@@ -11,7 +11,7 @@ import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParentCommand;
 
 /**
- * Simple mkdir command for use with rest server
+ * Command that creates directories on the REST file server.
  *
  * @author tonyj
  */
@@ -28,6 +28,12 @@ public class MakeDirectoryCommand implements Callable<Void> {
     private boolean createParents;
 
     @Override
+    /**
+     * Executes the mkdir command.
+     *
+     * @return {@code null} always
+     * @throws IOException if the directory cannot be created
+     */
     public Void call() throws IOException {
         try (FileSystem restfs = parent.createFileSystem()) {
             Path restPath = restfs.getPath(path);
