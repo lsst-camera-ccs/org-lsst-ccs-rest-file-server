@@ -39,7 +39,9 @@ import org.lsst.ccs.web.rest.file.server.data.VersionInfoV2;
 import org.lsst.ccs.web.rest.file.server.jwt.JWTTokenNeeded;
 
 /**
- * Rest interface with functions specific to versioned files
+ * REST resource providing operations specific to {@link VersionedFile}
+ * instances, including retrieving version metadata, downloading particular
+ * versions, computing diffs, and managing version attributes.
  *
  * @author tonyj
  */
@@ -51,6 +53,13 @@ public class VersionedFileServer {
     @Optional
     private java.nio.file.Path baseDir;
 
+    /**
+     * Initializes the base directory for versioned files from the servlet
+     * context configuration if present.
+     *
+     * @param context servlet context used to look up initialization parameters
+     * @throws IOException if the base directory cannot be resolved
+     */
     @Context
     public void setServletContext(ServletContext context) throws IOException {
         if (context != null) {
@@ -64,6 +73,15 @@ public class VersionedFileServer {
         }
     }
 
+    /**
+     * Returns metadata about all versions of the specified file.
+     *
+     * @param filePath relative path to the versioned file
+     * @param request the HTTP precondition request
+     * @param protocolVersion optional protocol version to downgrade responses
+     * @return version information for the file
+     * @throws IOException if the file cannot be read
+     */
     @GET
     @Path("info/{filePath: .*}")
     public Response info(@PathParam("filePath") String filePath, @Context Request request, @HeaderParam(PROTOCOL_VERSION_HEADER) Integer protocolVersion) throws IOException {
@@ -89,6 +107,15 @@ public class VersionedFileServer {
                 .build();
     }
 
+    /**
+     * Streams the content of a specific version of a file to the client.
+     *
+     * @param filePath path to the versioned file
+     * @param version version identifier such as "latest" or an explicit number
+     * @param request the HTTP precondition request
+     * @return the file content as an octet-stream
+     * @throws IOException if the version cannot be resolved
+     */
     @GET
     @Path("download/{filePath: .*}")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
@@ -137,6 +164,17 @@ public class VersionedFileServer {
         return versionNumber;
     }
 
+    /**
+     * Generates a unified diff between two versions of a file.
+     *
+     * @param filePath path to the versioned file
+     * @param v1 first version identifier
+     * @param v2 second version identifier
+     * @param request the HTTP precondition request
+     * @return a unified diff as an octet-stream
+     * @throws IOException if either version cannot be read
+     * @throws DiffException if diff computation fails
+     */
     @GET
     @Path("diff/{filePath: .*}")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
@@ -174,6 +212,16 @@ public class VersionedFileServer {
                 .build();
     }
 
+    /**
+     * Sets the default version of a file.
+     *
+     * @param filePath path to the versioned file
+     * @param defaultVersion version number to designate as default
+     * @param request the HTTP precondition request
+     * @param protocolVersion optional protocol version for the response
+     * @return updated version information
+     * @throws IOException if the default cannot be set
+     */
     @PUT
     @Path("set/{filePath: .*}")
     @JWTTokenNeeded
@@ -185,6 +233,16 @@ public class VersionedFileServer {
         return info(filePath, request, protocolVersion);
     }
 
+    /**
+     * Updates metadata options such as hidden state or comments for a version.
+     *
+     * @param filePath path to the versioned file
+     * @param options options describing the changes to apply
+     * @param request the HTTP precondition request
+     * @param protocolVersion optional protocol version for the response
+     * @return updated version information
+     * @throws IOException if the options cannot be applied
+     */
     @PUT
     @Path("setOptions/{filePath: .*}")
     @JWTTokenNeeded
@@ -205,6 +263,15 @@ public class VersionedFileServer {
         return info(filePath, request, protocolVersion);
     }
 
+    /**
+     * Uploads content as a new version of the specified file or creates a new
+     * versioned file if it does not yet exist.
+     *
+     * @param filePath path to the versioned file
+     * @param content file bytes to store
+     * @return a map containing the new version number
+     * @throws IOException if the upload fails
+     */
     @POST
     @Path("upload/{filePath: .*}")
     @JWTTokenNeeded
@@ -221,6 +288,13 @@ public class VersionedFileServer {
         }
     }
 
+    /**
+     * Deletes an entire versioned file including all versions.
+     *
+     * @param filePath path to the versioned file
+     * @return an empty success response
+     * @throws IOException if deletion fails
+     */
     @DELETE
     @JWTTokenNeeded
     @Path("deleteFile/{filePath: .*}")

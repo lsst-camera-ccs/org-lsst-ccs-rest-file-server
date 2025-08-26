@@ -35,7 +35,9 @@ import org.jvnet.hk2.annotations.Optional;
 import org.lsst.ccs.web.rest.file.server.data.RestFileInfo;
 
 /**
- * Rest interface which works with any files
+ * JAX-RS resource providing operations on non-versioned files. It exposes
+ * endpoints to list directory contents, retrieve file metadata, download and
+ * upload files, and perform basic file manipulations such as move or delete.
  *
  * @author tonyj
  */
@@ -47,6 +49,12 @@ public class FileServer {
     @Optional
     private java.nio.file.Path baseDir;
 
+    /**
+     * Initializes the base directory from the servlet context if provided.
+     *
+     * @param context the servlet context containing configuration
+     * @throws IOException if the configured directory cannot be resolved
+     */
     @Context
     public void setServletContext(ServletContext context) throws IOException {
         if (context != null) {
@@ -60,12 +68,28 @@ public class FileServer {
         }
     }
 
+    /**
+     * Lists the contents of the server's base directory.
+     *
+     * @param request the HTTP precondition request
+     * @return a response containing information about the directory contents
+     * @throws IOException if the listing fails
+     */
     @GET
     @Path("list")
     public Response list(@Context Request request) throws IOException {
         return list("", request);
     }
 
+    /**
+     * Lists the contents of the specified directory or returns information
+     * about a file if the path points to a file.
+     *
+     * @param filePath relative path of the file or directory
+     * @param request the HTTP precondition request
+     * @return metadata for the requested file or directory
+     * @throws IOException if the path cannot be read
+     */
     @GET
     @Path("list/{filePath: .*}")
     public Response list(@PathParam("filePath") String filePath, @Context Request request) throws IOException {
@@ -104,6 +128,14 @@ public class FileServer {
                 .build();
     }
 
+    /**
+     * Retrieves metadata for the specified file or directory.
+     *
+     * @param filePath relative path of the file or directory
+     * @param request the HTTP precondition request
+     * @return a response containing the file information
+     * @throws IOException if the file attributes cannot be read
+     */
     @GET
     @Path("info/{filePath: .*}")
     public Response info(@PathParam("filePath") String filePath, @Context Request request) throws IOException {
@@ -127,6 +159,14 @@ public class FileServer {
         return new RestFileInfo(file, fileAttributes, VersionedFile.isVersionedFile(file), children);
     }
 
+    /**
+     * Streams the specified file to the client.
+     *
+     * @param filePath relative path of the file to download
+     * @param request the HTTP precondition request
+     * @return the file content as an octet-stream
+     * @throws IOException if the file cannot be read
+     */
     @GET
     @Path("download/{filePath: .*}")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
@@ -152,6 +192,13 @@ public class FileServer {
         }
     }
 
+    /**
+     * Creates a new directory at the specified path.
+     *
+     * @param filePath relative path of the directory to create
+     * @return an empty success response
+     * @throws IOException if creation fails
+     */
     @POST
     @Path("createDirectory/{filePath: .*}")
     public Response createDirectory(@PathParam("filePath") String filePath) throws IOException {
@@ -160,6 +207,13 @@ public class FileServer {
         return Response.ok().build();
     }
 
+    /**
+     * Creates an empty file at the specified path.
+     *
+     * @param filePath relative path of the file to create
+     * @return an empty success response
+     * @throws IOException if creation fails
+     */
     @POST
     @Path("createFile/{filePath: .*}")
     public Response createFile(@PathParam("filePath") String filePath) throws IOException {
@@ -168,6 +222,14 @@ public class FileServer {
         return Response.ok().build();
     }
 
+    /**
+     * Moves or renames a file or directory.
+     *
+     * @param source source path relative to the base directory
+     * @param target destination path relative to the base directory
+     * @return an empty success response
+     * @throws IOException if the move fails
+     */
     @POST
     @Path("move/{filePath: .*}")
     public Response move(@PathParam("filePath") String source, @QueryParam("target") String target) throws IOException {
@@ -177,6 +239,13 @@ public class FileServer {
         return Response.ok().build();
     }
 
+    /**
+     * Deletes the specified file or directory.
+     *
+     * @param filePath path of the file or directory to delete
+     * @return an empty success response
+     * @throws IOException if deletion fails
+     */
     @DELETE
     @Path("deleteFile/{filePath: .*}")
     public Response deleteFile(@PathParam("filePath") String filePath) throws IOException {
@@ -185,6 +254,15 @@ public class FileServer {
         return Response.ok().build();
     }
 
+    /**
+     * Uploads content to the specified file using the given open options.
+     *
+     * @param filePath relative path of the target file
+     * @param openOptions file open options such as {@code CREATE_NEW}
+     * @param content the bytes to write
+     * @return an empty success response
+     * @throws IOException if writing fails
+     */
     @POST
     @Path("upload/{filePath: .*}")
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)

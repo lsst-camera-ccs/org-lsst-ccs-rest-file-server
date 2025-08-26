@@ -18,6 +18,10 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.Provider;
 
 /**
+ * {@link ContainerRequestFilter} that enforces JWT authentication for
+ * resources annotated with {@link JWTTokenNeeded}. The filter optionally
+ * restricts access to a set of allowed IP addresses supplied via the
+ * {@code CCS_REST_ALLOWED_IPS} environment variable.
  *
  * @author tonyj
  */
@@ -32,6 +36,14 @@ public class JWTTokenNeededFilter implements ContainerRequestFilter {
     private static final String allowedIPs = System.getenv("CCS_REST_ALLOWED_IPS");
     private static final Pattern ALLOWED_IPS_PATTERN = allowedIPs == null ? null : Pattern.compile(allowedIPs);
 
+    /**
+     * Validates the JWT token and optional client IP address present in the
+     * current request. If validation fails the request is aborted with
+     * {@link Response.Status#UNAUTHORIZED}.
+     *
+     * @param requestContext context for the incoming request
+     * @throws IOException if an error occurs during verification
+     */
     @Override
     public void filter(ContainerRequestContext requestContext) throws IOException {
         
