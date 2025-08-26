@@ -20,10 +20,12 @@ class CacheRequestFilter implements ClientRequestFilter {
     private final boolean cacheOnly;
 
     /**
-     * Create a new CacheRequestFilter.
-     * @param cache The cache to use
-     * @param cacheOnly <code>true</code> if requests should be forced to come from the cache
-     * without checking their freshness, e.g. if the server is known to be offline.
+     * Creates a filter that serves requests from the local cache when
+     * possible.
+     *
+     * @param cache the backing cache
+     * @param cacheOnly {@code true} to avoid contacting the server and rely
+     *                  solely on cached data
      */
     CacheRequestFilter(Cache cache, boolean cacheOnly) {
         this.cache = cache;

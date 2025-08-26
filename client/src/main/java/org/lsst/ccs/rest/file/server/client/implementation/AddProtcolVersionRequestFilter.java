@@ -6,8 +6,8 @@ import javax.ws.rs.client.ClientRequestFilter;
 import static org.lsst.ccs.web.rest.file.server.data.Constants.PROTOCOL_VERSION_HEADER;
 
 /**
- *
- * @author tonyj
+ * {@link ClientRequestFilter} that informs the server which client protocol
+ * version is being used.
  */
 public class AddProtcolVersionRequestFilter implements ClientRequestFilter {
     private static final String FILTER_HEADER_VALUE = "2";

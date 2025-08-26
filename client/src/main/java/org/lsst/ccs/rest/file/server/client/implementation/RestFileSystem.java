@@ -28,8 +28,8 @@ import org.lsst.ccs.rest.file.server.client.implementation.unixlike.AbstractPath
 import org.lsst.ccs.rest.file.server.client.implementation.unixlike.AbstractFileSystem;
 
 /**
- *
- * @author tonyj
+ * {@link java.nio.file.FileSystem} implementation that communicates with a
+ * remote REST file server.
  */
 public class RestFileSystem extends AbstractFileSystem implements AbstractPathBuilder {
 
@@ -49,6 +49,14 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
     private static final Logger LOG = Logger.getLogger(RestFileSystem.class.getName());
     private final URI mountPoint;
 
+    /**
+     * Creates a new REST-based file system.
+     *
+     * @param provider owning provider instance
+     * @param uri base URI of the REST server
+     * @param env configuration options controlling client behaviour
+     * @throws IOException if the system cannot be initialised
+     */
     public RestFileSystem(RestFileSystemProvider provider, URI uri, Map<String, ?> env) throws IOException {
         this.provider = provider;
         uri = uri.getPath().endsWith("/") ? uri : UriBuilder.fromUri(uri).path(uri.getPath()+"/").build();
@@ -172,6 +180,12 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
         return uri.resolve(path);
     }
     
+    /**
+     * Returns the URI path that is considered the root within the remote
+     * server.
+     *
+     * @return the mount point URI
+     */
     public URI getMountPoint() {
         return mountPoint;
     }

@@ -18,6 +18,12 @@ class CacheResponseFilter implements ClientResponseFilter {
 
     private final Cache cache;
 
+    /**
+     * Creates a new response filter that updates the local cache with data
+     * returned from the server.
+     *
+     * @param cache the cache used to store responses
+     */
     CacheResponseFilter(Cache cache) {
         this.cache = cache;
     }

@@ -6,8 +6,8 @@ import java.nio.file.Path;
 import java.util.Collections;
 
 /**
- *
- * @author tonyj
+ * Minimal {@link FileSystem} implementation providing Unix-like behaviour for
+ * use by the REST client.
  */
 public abstract class AbstractFileSystem extends FileSystem {
 
@@ -20,21 +20,25 @@ public abstract class AbstractFileSystem extends FileSystem {
         isOpen = false;
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean isOpen() {
         return isOpen;
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean isReadOnly() {
         return isReadOnly;
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getSeparator() {
         return "/";
     }
 
+    /** {@inheritDoc} */
     @Override
     public Iterable<Path> getRootDirectories() {
         return Collections.singletonList(root);

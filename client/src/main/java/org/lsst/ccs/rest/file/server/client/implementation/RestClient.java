@@ -50,8 +50,9 @@ import org.lsst.ccs.web.rest.file.server.data.VersionInfoV2;
 import org.lsst.ccs.web.rest.file.server.data.VersionOptions;
 
 /**
- *
- * @author tonyj
+ * Low level helper that performs HTTP requests against the REST file server.
+ * Instances are created by {@link RestFileSystem} and are not intended for
+ * external use.
  */
 class RestClient implements Closeable {
 
@@ -381,6 +382,11 @@ class RestClient implements Closeable {
     }
 
     @Override
+    /**
+     * Closes the underlying JAX-RS client and releases any system resources.
+     *
+     * @throws IOException if closing the client fails
+     */
     public void close() throws IOException {
         client.close();
     }

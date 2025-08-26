@@ -11,11 +11,16 @@ import java.util.Collections;
 import java.util.Properties;
 
 /**
- *
- * @author tonyj
+ * Example that uploads a new properties file to the REST file server.
  */
 public class Main4 {
 
+    /**
+     * Runs the example.
+     *
+     * @param args ignored
+     * @throws IOException if the upload fails
+     */
     public static void main(String[] args) throws IOException {
         URI uri = URI.create("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/");
         FileSystem restfs = FileSystems.newFileSystem(uri, Collections.<String, Object>emptyMap());

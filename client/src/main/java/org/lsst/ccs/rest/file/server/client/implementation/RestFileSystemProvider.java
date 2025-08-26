@@ -37,9 +37,8 @@ import org.lsst.ccs.rest.file.server.client.VersionedFileAttributes;
 import org.lsst.ccs.utilities.misc.ExtendableURLStreamHandlerFactory;
 
 /**
- * Implementation of FileSystemProvider for a CCS rest file ser
- *
- * @author tonyj
+ * {@link FileSystemProvider} implementation that creates and manages
+ * {@link RestFileSystem} instances for communicating with the REST file server.
  */
 public class RestFileSystemProvider extends FileSystemProvider {
 
@@ -48,11 +47,17 @@ public class RestFileSystemProvider extends FileSystemProvider {
 
     private final Map<URI, RestFileSystem> cache = new ConcurrentHashMap<>();
 
+    /** {@inheritDoc} */
     @Override
     public String getScheme() {
         return "ccs";
     }
 
+    /**
+     * Sets default options to be used when creating new file systems.
+     *
+     * @param defaultEnv map of default environment values
+     */
     public static void setDefaultFileSystemOption(Map<String, ?> defaultEnv) {
         defaultEnvironment = defaultEnv;
     }
@@ -82,11 +87,13 @@ public class RestFileSystemProvider extends FileSystemProvider {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public FileSystem getFileSystem(URI uri) {
         return cache.get(uri);
     }
 
+    /** {@inheritDoc} */
     @Override
     public Path getPath(URI uri) {
         if (!getScheme().equals(uri.getScheme())) {
@@ -176,9 +183,10 @@ public class RestFileSystemProvider extends FileSystemProvider {
         return false;
     }
 
+    /** {@inheritDoc} */
     @Override
     public FileStore getFileStore(Path path) throws IOException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
@@ -187,6 +195,7 @@ public class RestFileSystemProvider extends FileSystemProvider {
         restPath.getClient().checkAccess(restPath, modes);
     }
 
+    /** {@inheritDoc} */
     @Override
     public <V extends FileAttributeView> V getFileAttributeView(Path path, Class<V> type, LinkOption... options) {
         final RestPath restPath = toRestPath(path);
