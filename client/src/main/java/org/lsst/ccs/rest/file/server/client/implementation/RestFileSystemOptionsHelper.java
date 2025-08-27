@@ -8,6 +8,7 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -19,7 +20,7 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
  */
  class RestFileSystemOptionsHelper {
 
-    private final Map<String, ?> env;
+    private Map<String, ?> env;
     private static final Logger LOG = Logger.getLogger(RestFileSystemOptionsHelper.class.getName());
     private static final URI defaultMountPoint = URI.create(".");
 
@@ -30,7 +31,18 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
             this.env = env;
         }
     }
-
+    
+    void mergeOptions(RestFileSystemOptionsHelper options) {
+        if ( this.env == null ) {
+            this.env = options.env;
+        } else {
+            if (options.env != null) {
+                this.env.putAll((Map) options.env);
+            }
+        }
+    }
+    
+    
     RestFileSystemOptions.CacheOptions getCacheOptions() {
         return getOption(RestFileSystemOptions.CACHE_OPTIONS, RestFileSystemOptions.CacheOptions.class, RestFileSystemOptions.CacheOptions.NONE);
     }

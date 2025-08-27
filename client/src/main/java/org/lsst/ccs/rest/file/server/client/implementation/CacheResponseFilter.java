@@ -16,10 +16,12 @@ import org.lsst.ccs.rest.file.server.client.implementation.Cache.CacheEntry;
  */
 class CacheResponseFilter implements ClientResponseFilter {
 
-    private final Cache cache;
+    private final String cacheRegion;
+    private boolean expireCacheEntry;
 
-    CacheResponseFilter(Cache cache) {
-        this.cache = cache;
+    CacheResponseFilter(String cacheRegion, boolean expireCacheEntry) {
+        this.cacheRegion = cacheRegion;
+        this.expireCacheEntry = expireCacheEntry;
     }
 
     @Override
@@ -31,10 +33,10 @@ class CacheResponseFilter implements ClientResponseFilter {
         }
 
         if (response.getStatus() == Response.Status.OK.getStatusCode()) {
-            cache.cacheResponse(response, request.getUri());
+            CacheBuilder.getCache().cacheResponse(response, request.getUri(), expireCacheEntry, cacheRegion);
         } else if (response.getStatus() == Response.Status.NOT_MODIFIED.getStatusCode()) {
             // Use the cache
-            CacheEntry entry = cache.getEntry(request.getUri());
+            CacheEntry entry = CacheBuilder.getCache().getEntry(request.getUri(), cacheRegion);
             entry.updateCacheHeaders(response);
             response.getHeaders().clear();
             response.setStatus(Response.Status.OK.getStatusCode());
@@ -43,4 +45,10 @@ class CacheResponseFilter implements ClientResponseFilter {
             response.setEntityStream(is);
         }
     }
+    
+    //For tests
+    void setExpireCacheEntry(boolean expireCacheEntry) {
+        this.expireCacheEntry = expireCacheEntry;
+    }
+    
 }

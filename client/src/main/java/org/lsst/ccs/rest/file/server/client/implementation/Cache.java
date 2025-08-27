@@ -14,6 +14,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -31,11 +33,10 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
  */
 class Cache implements Closeable {
 
-    private CacheAccess<URI, CacheEntry> map;
+    private Map<String, CacheAccess<URI,CacheEntry>> regionMaps = new HashMap<>();
     private FileLock lock;
-    private RestFileSystemOptions.CacheFallback cacheFallback;
 
-    Cache(RestFileSystemOptionsHelper options) throws IOException {
+    Cache(RestFileSystemOptionsHelper options, Properties cacheProperties) throws IOException {
 
         JCS.setLogSystem(LogManager.LOGSYSTEM_JAVA_UTIL_LOGGING);
 
@@ -48,10 +49,14 @@ class Cache implements Closeable {
         try ( InputStream in = Cache.class.getResourceAsStream("memory.ccf")) {
             props.load(in);
         }
+
+        props.putAll(cacheProperties);
+
         if (options.getCacheOptions() == RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK) {
+            
             try ( InputStream in = Cache.class.getResourceAsStream("disk.ccf")) {
                 props.load(in);
-            }
+            }                
             Path cacheLocation = options.getDiskCacheLocation();
             if (cacheLocation != null) {
                 // Check that we can lock the cache, and if not what to do about it
@@ -81,34 +86,23 @@ class Cache implements Closeable {
                 if (lock == null) {
                     throw new IOException("Cache already in use and unable to get alternate cache location");
                 }
-
-                props.setProperty("jcs.auxiliary.DC.attributes.DiskPath", cacheLocation.toAbsolutePath().toString());
             }
+            props.setProperty("jcs.auxiliary.DC.attributes.DiskPath", cacheLocation.toAbsolutePath().toString());
         }
+        
         CompositeCacheManager ccm = CompositeCacheManager.getUnconfiguredInstance();
         ccm.configure(props);
-        map = JCS.getInstance("default");        
-        this.cacheFallback = options.getCacheFallback();
     }
 
-    void setCacheFallbackOption(RestFileSystemOptions.CacheFallback cacheFallback) {
-        this.cacheFallback = cacheFallback;
-    }
-    
-    boolean doEntriesExpire() {
-        return cacheFallback != RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE;
-    }
-    
-    CacheEntry getEntry(URI uri) {
+    CacheEntry getEntry(URI uri, String region) {        
+        CacheAccess<URI,CacheEntry> map = regionMaps.computeIfAbsent(region, (k) -> { return JCS.getInstance(region);});  
         CacheEntry e = map.get(uri);
-        if ( e != null ) {
-            e.setIsExpired(doEntriesExpire());
-        }
         return e;
     }
 
-    void cacheResponse(ClientResponseContext response, URI uri) throws IOException {
-        map.put(uri, new CacheEntry(response));
+    void cacheResponse(ClientResponseContext response, URI uri, boolean expireCacheEntry, String cacheRegion) throws IOException {
+        CacheAccess<URI,CacheEntry> map = regionMaps.computeIfAbsent(cacheRegion, (k) -> { return JCS.getInstance(cacheRegion);});  
+        map.put(uri, new CacheEntry(response, expireCacheEntry));
     }
 
     @Override
@@ -125,8 +119,7 @@ class Cache implements Closeable {
             lock.close();
             lock.channel().close();
             lock = null;
-        }
-
+        }        
     }
 
     public static class CacheEntry implements Serializable {
@@ -144,7 +137,7 @@ class Cache implements Closeable {
 
         }
 
-        private CacheEntry(ClientResponseContext response) throws IOException {
+        private CacheEntry(ClientResponseContext response, boolean isExpired) throws IOException {
             tag = response.getEntityTag() == null ? null : response.getEntityTag().toString();
             lastModified = response.getLastModified();
             mediaType = response.getMediaType().toString();
@@ -161,6 +154,7 @@ class Cache implements Closeable {
             out.close();
             bytes = out.toByteArray();
             response.setEntityStream(new ByteArrayInputStream(bytes));
+            this.isExpired = isExpired;
         }
 
         /**
@@ -175,10 +169,6 @@ class Cache implements Closeable {
             return isExpired;
         }
         
-        void setIsExpired(boolean isExpired) {
-            this.isExpired = isExpired;
-        }
-
         byte[] getContent() {
             return bytes;
         }

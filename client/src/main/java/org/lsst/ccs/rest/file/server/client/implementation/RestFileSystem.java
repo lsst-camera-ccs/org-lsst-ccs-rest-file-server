@@ -44,25 +44,30 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
     private final URI uri;
     private final RestFileSystemOptionsHelper options;
     private final RestClient restClient;
-    private final Cache cache;
     private boolean offline = false;
     private static final Logger LOG = Logger.getLogger(RestFileSystem.class.getName());
     private final URI mountPoint;
+    private final CacheResponseFilter cacheResponseFilter;
 
     public RestFileSystem(RestFileSystemProvider provider, URI uri, Map<String, ?> env) throws IOException {
         this.provider = provider;
         uri = uri.getPath().endsWith("/") ? uri : UriBuilder.fromUri(uri).path(uri.getPath()+"/").build();
         this.options = new RestFileSystemOptionsHelper(env);
         mountPoint = options.getMountPoint();
+        String cacheRegion = "default";
+        if ( !mountPoint.getPath().equals(".") ) {
+            cacheRegion = mountPoint.getPath().replaceAll("/", "");
+        }
         this.uri = uri;
         Client client = ClientBuilder.newBuilder().readTimeout(3, TimeUnit.SECONDS).connectTimeout(3, TimeUnit.SECONDS).build();
-        final URI restURI = computeRestURI(client);
-        if (options.getCacheOptions() != RestFileSystemOptions.CacheOptions.NONE) {
-            cache = new Cache(options);
-            client.register(new CacheRequestFilter(cache, offline || options.getCacheFallback() == RestFileSystemOptions.CacheFallback.ALWAYS));
-            client.register(new CacheResponseFilter(cache));
+        final URI restURI = computeRestURI(client);        
+        if (options.getCacheOptions() != RestFileSystemOptions.CacheOptions.NONE) {            
+            CacheBuilder.addRegion(cacheRegion, options);
+            client.register(new CacheRequestFilter(cacheRegion, offline || options.getCacheFallback() == RestFileSystemOptions.CacheFallback.ALWAYS));
+            this.cacheResponseFilter = new CacheResponseFilter(cacheRegion, getExpireCacheEntry(options.getCacheFallback()));
+            client.register(cacheResponseFilter);
         } else {
-            cache = null;
+            cacheResponseFilter = null;
         }
         client.register(new AddProtcolVersionRequestFilter());
         Object jwt = env.get(RestFileSystemOptions.AUTH_TOKEN);
@@ -108,13 +113,21 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
     }
     
     Cache getCache() {
-        return cache;
+        return CacheBuilder.getCache();
     }
     
     RestClient getClient() {
         return restClient;
     }
 
+    private boolean getExpireCacheEntry(RestFileSystemOptions.CacheFallback cacheFallback) {
+        return cacheFallback != RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE;        
+    }
+    
+    void setCacheFallbackOption(RestFileSystemOptions.CacheFallback cacheFallback) {
+        cacheResponseFilter.setExpireCacheEntry(getExpireCacheEntry(cacheFallback));
+    }
+    
     @Override
     public FileSystemProvider provider() {
         return provider;
@@ -124,8 +137,8 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
     public void close() throws IOException {
         provider.dispose(getFullURI());
         restClient.close();
-        if (cache != null) {
-            cache.close();
+        if (cacheResponseFilter != null) {
+            CacheBuilder.getCache().close();
         }
     }
 
