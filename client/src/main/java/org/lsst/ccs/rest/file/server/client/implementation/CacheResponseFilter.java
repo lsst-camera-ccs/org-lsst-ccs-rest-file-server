@@ -19,6 +19,13 @@ class CacheResponseFilter implements ClientResponseFilter {
     private final String cacheRegion;
     private boolean expireCacheEntry;
 
+    /**
+     * Creates a new response filter that updates the local cache with data
+     * returned from the server.
+     *
+     * @param cacheRegion the cache region used to store responses
+     * @param expireCacheEntry true/false to specify if the remote entry must be checked for updates.
+     */
     CacheResponseFilter(String cacheRegion, boolean expireCacheEntry) {
         this.cacheRegion = cacheRegion;
         this.expireCacheEntry = expireCacheEntry;

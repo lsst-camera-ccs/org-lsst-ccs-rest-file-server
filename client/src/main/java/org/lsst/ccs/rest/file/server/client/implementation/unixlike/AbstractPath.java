@@ -16,14 +16,12 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 
 /**
- * An implementation of Path which should work for any unix-lije file system
+ * An implementation of {@link Path} that works for any Unix-like file system
  * with
  * <ul>
  * <li>A single root
  * <li>Unix like file semantics
  * </ul>
- *
- * @author tonyj
  */
 public abstract class AbstractPath implements Path {
 
@@ -33,6 +31,12 @@ public abstract class AbstractPath implements Path {
     private final LinkedList<String> path;
     private final AbstractPathBuilder builder;
 
+    /**
+     * Creates a path from a string representation.
+     *
+     * @param builder factory used to create additional path instances
+     * @param path textual path representation
+     */
     protected AbstractPath(AbstractPathBuilder builder, String path) {
         this.builder = builder;
         this.isAbsolute = path.startsWith(DELIMETER);
@@ -43,6 +47,13 @@ public abstract class AbstractPath implements Path {
         this.path = path.isEmpty() ? EMPTY_PATH : new LinkedList<>(Arrays.asList(path.split(DELIMETER + "+")));
     }
 
+    /**
+     * Creates a path from its components.
+     *
+     * @param builder factory used to create additional path instances
+     * @param isAbsolute whether the path is absolute
+     * @param path individual elements of the path
+     */
     protected AbstractPath(AbstractPathBuilder builder, boolean isAbsolute, List<String> path) {
         this.builder = builder;
         this.isAbsolute = isAbsolute;

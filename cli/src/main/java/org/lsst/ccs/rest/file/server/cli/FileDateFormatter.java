@@ -7,7 +7,9 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
 /**
- * A formatter for file date, tries to emulate ls
+ * Formats file modification times in a style similar to the Unix {@code ls}
+ * command.
+ *
  * @author tonyj
  */
 public class FileDateFormatter {
@@ -20,17 +22,29 @@ public class FileDateFormatter {
     private final Instant referenceTime;
 
     
+    /**
+     * Creates a formatter.
+     *
+     * @param fullTime if {@code true}, always use the full time format rather
+     *        than switching based on age
+     */
     FileDateFormatter(boolean fullTime) {
         this.fullTime = fullTime;
         referenceTime = Instant.now();
     }
-    
+
+    /**
+     * Formats the supplied file time.
+     *
+     * @param time the file time to format
+     * @return the formatted time string
+     */
     String format(FileTime time) {
         Instant timeStamp = time.toInstant();
         Duration age = Duration.between(referenceTime, timeStamp);
         DateTimeFormatter formatter;
         if (fullTime) {
-            formatter = FULL_FORMAT;  
+            formatter = FULL_FORMAT;
         } else if (age.compareTo(SWITCH_FORMAT_AGE)<0) {
             formatter = RECENT_FORMAT;  
         } else {

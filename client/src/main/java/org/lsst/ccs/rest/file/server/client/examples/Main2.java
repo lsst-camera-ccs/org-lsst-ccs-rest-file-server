@@ -12,11 +12,17 @@ import java.util.Map;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributeView;
 
 /**
- *
- * @author tonyj
+ * Example that prints file attributes from both a local file and a file on the
+ * REST file server.
  */
 public class Main2 {
 
+    /**
+     * Runs the example.
+     *
+     * @param args ignored
+     * @throws IOException if an error occurs while accessing either file system
+     */
     public static void main(String[] args) throws IOException {
         Path path = Paths.get("/home/tonyj/Untitled9.ipynb");
         Map<String, Object> readAttributes = Files.readAttributes(path, "*");

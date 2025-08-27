@@ -14,11 +14,17 @@ import org.lsst.ccs.rest.file.server.client.VersionOpenOption;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributeView;
 
 /**
- *
- * @author tonyj
+ * Example showing how to read a specific version of a file using
+ * {@link VersionOpenOption}.
  */
 public class Main3 {
 
+    /**
+     * Runs the example.
+     *
+     * @param args ignored
+     * @throws IOException if the file cannot be read
+     */
     public static void main(String[] args) throws IOException {
         URI uri = URI.create("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/");
         FileSystem restfs = FileSystems.newFileSystem(uri, Collections.<String, Object>emptyMap());

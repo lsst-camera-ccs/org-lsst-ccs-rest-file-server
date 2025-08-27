@@ -6,13 +6,20 @@ import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.core.HttpHeaders;
 
 /**
- *
- * @author tonyj
+ * {@link ClientRequestFilter} that adds a JSON Web Token (JWT) to each request
+ * so that the REST server can authenticate the client.
  */
 public class AddJWTTokenRequestFilter implements ClientRequestFilter {
     private static final String JWT_HEADER_KEY = HttpHeaders.AUTHORIZATION;
     private final String jwt;
 
+    /**
+     * Creates a new filter that attaches the supplied token as a bearer
+     * authorization header.
+     *
+     * @param jwt the JWT to include; may be {@code null} if no token is
+     *            available
+     */
     AddJWTTokenRequestFilter(String jwt) {
         this.jwt = jwt;
     }

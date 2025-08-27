@@ -18,7 +18,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 /**
- * Simple ls command for use with rest server
+ * Command that lists files and directories on the REST file server.
  *
  * @author tonyj
  */
@@ -50,6 +50,12 @@ public class ListCommand implements Callable<Void> {
     private String path;
 
     @Override
+    /**
+     * Executes the ls command.
+     *
+     * @return {@code null} always
+     * @throws IOException if an I/O error occurs while listing
+     */
     public Void call() throws IOException {
         try (FileSystem restfs = parent.createFileSystem()) {
             Path restPath = restfs.getPath(path);

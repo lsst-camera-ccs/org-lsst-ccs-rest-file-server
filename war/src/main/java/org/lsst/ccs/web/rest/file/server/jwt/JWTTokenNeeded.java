@@ -7,7 +7,9 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import java.lang.annotation.Target;
 
 /**
- * Interface to be used to makr rest methods which require authentication 
+ * Name-binding annotation used to mark JAX-RS resource classes or methods
+ * that require JWT-based authentication.
+ *
  * @author tonyj
  */
 @javax.ws.rs.NameBinding

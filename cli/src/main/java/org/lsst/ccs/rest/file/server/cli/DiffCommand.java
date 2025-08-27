@@ -17,7 +17,8 @@ import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
 /**
- * Simple cat command for use with rest server
+ * Command that displays differences between two versions of a file on the
+ * REST file server.
  *
  * @author tonyj
  */
@@ -42,6 +43,12 @@ public class DiffCommand implements Callable<Void> {
     CommandSpec spec;
 
     @Override
+    /**
+     * Executes the diff command.
+     *
+     * @return {@code null} always
+     * @throws IOException if an I/O error occurs while generating the diff
+     */
     public Void call() throws IOException {
         try (FileSystem restfs = parent.createFileSystem()) {
             Path restPath = restfs.getPath(path);

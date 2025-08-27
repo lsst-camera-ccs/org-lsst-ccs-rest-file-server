@@ -25,7 +25,8 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 /**
- * Simple edit command for use with rest server
+ * Command that opens a remote file in an editor and writes back any
+ * modifications.
  *
  * @author tonyj
  */
@@ -45,6 +46,12 @@ public class EditCommand implements Callable<Void> {
     private String path;
 
     @Override
+    /**
+     * Executes the edit command.
+     *
+     * @return {@code null} always
+     * @throws Exception if an error occurs while editing or writing the file
+     */
     public Void call() throws Exception {
         try (FileSystem restfs = parent.createFileSystem()) {
             Path restPath = restfs.getPath(path);

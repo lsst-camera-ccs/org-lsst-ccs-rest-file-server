@@ -15,8 +15,8 @@ import java.util.logging.Logger;
 import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
 
 /**
- *
- * @author tonyj
+ * Utility wrapper around the environment map supplied when creating the REST
+ * file system. Provides typed accessors for the various supported options.
  */
  class RestFileSystemOptionsHelper {
 
@@ -24,6 +24,11 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
     private static final Logger LOG = Logger.getLogger(RestFileSystemOptionsHelper.class.getName());
     private static final URI defaultMountPoint = URI.create(".");
 
+    /**
+     * Creates a new helper.
+     *
+     * @param env environment map supplied to the file system; may be {@code null}
+     */
     RestFileSystemOptionsHelper(Map<String, ?> env) {
         if (env == null) {
             this.env = createDefaultOptions();
@@ -31,7 +36,12 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
             this.env = env;
         }
     }
-    
+
+    /**
+     * Merge the content of a RestFileSystemOptionsHelper into this instance.
+     * 
+     * @param options The options to be merged
+     */
     void mergeOptions(RestFileSystemOptionsHelper options) {
         if ( this.env == null ) {
             this.env = options.env;
@@ -43,26 +53,58 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
     }
     
     
+    /**
+     * Returns the configured cache option.
+     *
+     * @return cache option, never {@code null}
+     */
+    
     RestFileSystemOptions.CacheOptions getCacheOptions() {
         return getOption(RestFileSystemOptions.CACHE_OPTIONS, RestFileSystemOptions.CacheOptions.class, RestFileSystemOptions.CacheOptions.NONE);
     }
 
+    /**
+     * Determines whether SSL should be used when contacting the server.
+     *
+     * @return SSL option
+     */
     RestFileSystemOptions.SSLOptions isUseSSL() {
         return getOption(RestFileSystemOptions.USE_SSL, RestFileSystemOptions.SSLOptions.class, RestFileSystemOptions.SSLOptions.AUTO);
     }
 
+    /**
+     * Returns the cache fallback behaviour.
+     *
+     * @return cache fallback option
+     */
     RestFileSystemOptions.CacheFallback getCacheFallback() {
         return getOption(RestFileSystemOptions.CACHE_FALLBACK, RestFileSystemOptions.CacheFallback.class, RestFileSystemOptions.CacheFallback.OFFLINE);
     }
 
+    /**
+     * Indicates whether cache logging is enabled.
+     *
+     * @return {@code true} if cache logging is enabled
+     */
     boolean isCacheLogging() {
         return getOption(RestFileSystemOptions.CACHE_LOGGING, Boolean.class, Boolean.FALSE);
     }
 
+    /**
+     * Specifies whether alternate cache locations are permitted if the primary
+     * location is unavailable.
+     *
+     * @return {@code true} if alternate locations are allowed
+     */
     boolean allowAlternateCacheLoction() {
         return getOption(RestFileSystemOptions.ALLOW_ALTERNATE_CACHE_LOCATION, Boolean.class, Boolean.FALSE);
     }
 
+    /**
+     * Provides the location of the on-disk cache if configured.
+     *
+     * @return path to the disk cache or {@code null} if none
+     */
     Path getDiskCacheLocation() {
         Object result = env.get(RestFileSystemOptions.CACHE_LOCATION);
         if (result == null) {
@@ -77,7 +119,12 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
             throw new IllegalArgumentException("Invalid value for option " + RestFileSystemOptions.CACHE_LOCATION + ": " + result);
         }
     }
-    
+
+    /**
+     * Returns the mount point that should be considered the root of the server.
+     *
+     * @return mount point URI
+     */
     URI getMountPoint() {
         Object result = env.get(RestFileSystemOptions.MOUNT_POINT);
         if (result == null) {

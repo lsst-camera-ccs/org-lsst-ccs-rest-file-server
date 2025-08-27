@@ -9,6 +9,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 /**
+ * Utility methods for computing and formatting entity tags (ETags) used in
+ * HTTP caching.
  *
  * @author tonyj
  */
@@ -16,6 +18,12 @@ class ETagHelper {
 
     private static final byte[] HEX_ARRAY = "0123456789ABCDEF".getBytes(StandardCharsets.US_ASCII);
 
+    /**
+     * Computes an MD5 based ETag for the supplied serializable object.
+     *
+     * @param object the object for which the tag should be generated
+     * @return a hex encoded representation of the object's digest
+     */
     public static String computeEtag(Serializable object) {
 
         try {
@@ -35,6 +43,12 @@ class ETagHelper {
         }
     }
 
+    /**
+     * Converts the supplied byte array to a hexadecimal string.
+     *
+     * @param bytes the bytes to convert
+     * @return the hexadecimal representation
+     */
     public static String bytesToHex(byte[] bytes) {
         byte[] hexChars = new byte[bytes.length * 2];
         for (int j = 0; j < bytes.length; j++) {

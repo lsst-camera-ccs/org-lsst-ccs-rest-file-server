@@ -10,16 +10,30 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.lsst.ccs.web.rest.file.server.jwt.JWTTokenNeededFilter;
 
 /**
+ * Jersey {@link ResourceConfig} for the REST file server. The configuration
+ * registers all resource classes and optionally enables JWT based
+ * authentication.
  *
  * @author tonyj
  */
 @ApplicationPath("rest")
 public final class MyConfiguration extends ResourceConfig {
 
+    /**
+     * Creates a configuration that includes authentication.
+     *
+     * @throws IOException if Firebase credentials cannot be obtained
+     */
     public MyConfiguration() throws IOException {
         this(false);
     }
 
+    /**
+     * Creates a configuration optionally skipping authentication setup.
+     *
+     * @param skipAuthentication {@code true} to omit JWT authentication filters
+     * @throws IOException if Firebase credentials cannot be obtained
+     */
     public MyConfiguration(boolean skipAuthentication) throws IOException {
 
         if (!skipAuthentication) {

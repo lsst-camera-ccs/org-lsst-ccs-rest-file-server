@@ -28,14 +28,22 @@ import org.apache.commons.jcs3.log.LogManager;
 import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
 
 /**
- *
- * @author tonyj
+ * Simple in-memory or disk-backed cache used to store server responses. The
+ * cache is optional and its behaviour is controlled by
+ * {@link RestFileSystemOptions}.
  */
 class Cache implements Closeable {
 
     private Map<String, CacheAccess<URI,CacheEntry>> regionMaps = new HashMap<>();
     private FileLock lock;
 
+    /**
+     * Creates a new cache instance based on the supplied options.
+     *
+     * @param options user supplied configuration
+     * @param cacheProperties user supplied properties with region information.
+     * @throws IOException if the cache cannot be initialised
+     */
     Cache(RestFileSystemOptionsHelper options, Properties cacheProperties) throws IOException {
 
         JCS.setLogSystem(LogManager.LOGSYSTEM_JAVA_UTIL_LOGGING);
@@ -122,6 +130,9 @@ class Cache implements Closeable {
         }        
     }
 
+    /**
+     * Serializable representation of a cached HTTP response.
+     */
     public static class CacheEntry implements Serializable {
 
         private String tag;
@@ -133,6 +144,9 @@ class Cache implements Closeable {
 
         static final long serialVersionUID = 1521062449875932852L;
 
+        /**
+         * Creates an empty cache entry. Used only for serialization.
+         */
         public CacheEntry() {
 
         }

@@ -10,8 +10,8 @@ import java.util.List;
 import org.lsst.ccs.web.rest.file.server.data.RestFileInfo;
 
 /**
- *
- * @author tonyj
+ * Concrete {@link java.nio.file.Path} implementation used by
+ * {@link RestFileSystem}.
  */
 class RestPath extends AbstractPath {
 
@@ -59,11 +59,13 @@ class RestPath extends AbstractPath {
         return ((RestFileSystem) this.getFileSystem()).getClient();
     }
 
+    /** {@inheritDoc} */
     @Override
     public FileSystem getFileSystem() {
         return fileSystem;
     }
 
+    /** {@inheritDoc} */
     @Override
     public URI toUri() {
         return fileSystem.getURI(this.toAbsolutePath().toString().substring(1));

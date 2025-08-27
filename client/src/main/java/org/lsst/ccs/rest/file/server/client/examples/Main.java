@@ -12,11 +12,18 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- *
- * @author tonyj
+ * Demonstrates basic read operations against a REST file server.
+ * The example connects to the server, locates a file and prints a few
+ * of its attributes and contents.
  */
 public class Main {
 
+    /**
+     * Runs the example.
+     *
+     * @param args ignored
+     * @throws IOException if an I/O error occurs while contacting the server
+     */
     public static void main(String[] args) throws IOException {
         URI uri = URI.create("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/");
         FileSystem restfs = FileSystems.newFileSystem(uri, Collections.<String, Object>emptyMap());
@@ -42,7 +49,7 @@ public class Main {
         stream.forEach(path -> System.out.println(path.getFileName().toString()));
         
         BasicFileAttributeView fileAttributeView = Files.getFileAttributeView(pathInRestServer, BasicFileAttributeView.class);
-        
+
         //Map<String, Object> readAttributes = Files.readAttributes(pathInRestServer, "*");
     }
 

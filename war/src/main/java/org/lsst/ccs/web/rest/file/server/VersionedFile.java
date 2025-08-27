@@ -40,6 +40,12 @@ public class VersionedFile {
     private final Properties meta;
     private final Path path;
 
+    /**
+     * Creates a wrapper for an existing versioned file directory.
+     *
+     * @param path the directory representing the versioned file
+     * @throws IOException if the path does not conform to the expected layout
+     */
     VersionedFile(Path path) throws IOException {
         this.path = path;
         if (!isVersionedFile(path)) {
@@ -49,6 +55,13 @@ public class VersionedFile {
         meta = loadMetaFile(path);
     }
 
+    /**
+     * Checks whether the supplied path is a versioned file directory.
+     *
+     * @param path the directory to test
+     * @return {@code true} if the directory contains version metadata
+     * @throws IOException if an I/O error occurs
+     */
     static boolean isVersionedFile(Path path) throws IOException {
         if (!Files.isDirectory(path)) {
             return false;
@@ -70,10 +83,23 @@ public class VersionedFile {
         return true;
     }
 
+    /**
+     * Returns all version numbers for this file including hidden versions.
+     *
+     * @return sorted array of version numbers
+     * @throws IOException if the versions cannot be listed
+     */
     int[] getVersions() throws IOException {
         return getVersions(true);
     }
 
+    /**
+     * Returns version numbers for this file.
+     *
+     * @param includeHidden whether hidden versions should be included
+     * @return sorted array of version numbers
+     * @throws IOException if the versions cannot be listed
+     */
     int[] getVersions(boolean includeHidden) throws IOException {
         try (Stream<Path> list = Files.list(path)) {
             return list
@@ -87,14 +113,32 @@ public class VersionedFile {
         }
     }
 
+    /**
+     * Gets the most recent version number.
+     *
+     * @return the latest version
+     * @throws IOException if the symbolic link cannot be resolved
+     */
     int getLatestVersion() throws IOException {
         return Integer.parseInt(path.resolve(LATEST).toRealPath().getFileName().toString());
     }
 
+    /**
+     * Gets the version number that should be considered the default.
+     *
+     * @return the default version
+     * @throws IOException if the symbolic link cannot be resolved
+     */
     int getDefaultVersion() throws IOException {
         return Integer.parseInt(path.resolve(DEFAULT).toRealPath().getFileName().toString());
     }
 
+    /**
+     * Sets the version that should be considered the default.
+     *
+     * @param version the version number to mark as default
+     * @throws IOException if the version is invalid or the link cannot be created
+     */
     void setDefaultVersion(int version) throws IOException {
         final Path targetPath = path.resolve(String.valueOf(version));
         if (version < 1 || !Files.exists(targetPath)) {
@@ -104,6 +148,13 @@ public class VersionedFile {
         Files.createSymbolicLink(path.resolve(DEFAULT), path.relativize(targetPath));
     }
 
+    /**
+     * Resolves the path for a specific version number.
+     *
+     * @param version the version to locate
+     * @return the path to the version's file
+     * @throws IOException if the version does not exist
+     */
     Path getPathForVersion(int version) throws IOException {
         final Path targetPath = path.resolve(String.valueOf(version));
         if (!Files.exists(path)) {
@@ -112,10 +163,20 @@ public class VersionedFile {
         return targetPath;
     }
 
+    /**
+     * Returns the symbolic link pointing to the default version file.
+     *
+     * @return path to the default version
+     */
     Path getDefault() {
         return path.resolve(DEFAULT);
     }
 
+    /**
+     * Returns the symbolic link pointing to the latest version file.
+     *
+     * @return path to the latest version
+     */
     Path getLatest() {
         return path.resolve(LATEST);
     }
@@ -129,11 +190,24 @@ public class VersionedFile {
         }
     }
 
+    /**
+     * Determines if the specified version is hidden.
+     *
+     * @param version version number to test
+     * @return {@code true} if the version is hidden
+     */
     boolean isHidden(int version) {
         return getHiddenVersions().contains(version);
     }
     
 
+    /**
+     * Marks a version as hidden or visible.
+     *
+     * @param version the version to modify
+     * @param isHidden {@code true} to hide the version; {@code false} to unhide
+     * @throws IOException if the version cannot be updated
+     */
     void setHidden(int version, boolean isHidden) throws IOException {
         Set<Integer> hiddenVersions = getHiddenVersions();
         boolean modified;
@@ -154,15 +228,36 @@ public class VersionedFile {
         }
     }
     
+    /**
+     * Retrieves the stored comment for a version.
+     *
+     * @param version the version whose comment is requested
+     * @return the comment text or an empty string
+     */
     String getComment(int version) {
-        return meta.getProperty(COMMENT_PROPERTY+version, "");
+        return meta.getProperty(COMMENT_PROPERTY + version, "");
     }
-    
 
+    /**
+     * Updates the comment associated with a version.
+     *
+     * @param version the version to update
+     * @param comment comment text to store
+     * @throws IOException if the metadata file cannot be updated
+     */
     void setComment(int version, String comment) throws IOException {
-        meta.setProperty(COMMENT_PROPERTY+version, comment);
+        meta.setProperty(COMMENT_PROPERTY + version, comment);
         updateMetaFile(path, meta);
     }
+
+    /**
+     * Adds a new version of the file using the supplied content.
+     *
+     * @param content file bytes for the new version
+     * @param onlyIfChanged if {@code true}, identical content will not create a new version
+     * @return the version number written
+     * @throws IOException if the version cannot be written
+     */
     int addVersion(byte[] content, boolean onlyIfChanged) throws IOException {
         int version = getLatestVersion() + 1;
         if (version > 1 && onlyIfChanged) {
@@ -179,6 +274,14 @@ public class VersionedFile {
         return version;
     }
 
+    /**
+     * Creates a new versioned file at the given path with initial content.
+     *
+     * @param path directory to create for the versioned file
+     * @param content initial file bytes
+     * @return a {@code VersionedFile} representing the created file
+     * @throws IOException if the file already exists or cannot be created
+     */
     static VersionedFile create(Path path, byte[] content) throws IOException {
         if (Files.exists(path)) {
             throw new IOException("File already exists: " + path);
@@ -206,6 +309,13 @@ public class VersionedFile {
         }
     }
 
+    /**
+     * Loads the version metadata file from the specified directory.
+     *
+     * @param dir directory containing the metadata file
+     * @return loaded properties
+     * @throws IOException if the metadata cannot be read
+     */
     static Properties loadMetaFile(Path dir) throws IOException {
         try (final InputStream in = Files.newInputStream(dir.resolve(META_FILE_NAME))) {
             Properties meta = new Properties();
@@ -214,6 +324,13 @@ public class VersionedFile {
         }
     }
 
+    /**
+     * Converts an existing unversioned file into a versioned file structure.
+     *
+     * @param unversionedFile the existing file to convert
+     * @return a {@code VersionedFile} representing the converted file
+     * @throws IOException if conversion fails
+     */
     static VersionedFile convert(Path unversionedFile) throws IOException {
         if (!Files.exists(unversionedFile)) {
             throw new NoSuchFileException("File not found " + unversionedFile);
@@ -235,10 +352,20 @@ public class VersionedFile {
         return new VersionedFile(unversionedFile);
     }
 
+    /**
+     * Returns the base file name of the versioned file directory.
+     *
+     * @return the file name
+     */
     String getFileName() {
         return path.getFileName().toString();
     }
 
+    /**
+     * Deletes the versioned file and all of its versions from disk.
+     *
+     * @throws IOException if deletion fails
+     */
     void delete() throws IOException {
         Files.walk(path).sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
     }

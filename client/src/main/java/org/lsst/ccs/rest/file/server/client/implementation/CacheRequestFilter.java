@@ -20,7 +20,9 @@ class CacheRequestFilter implements ClientRequestFilter {
     private final boolean cacheOnly;
 
     /**
-     * Create a new CacheRequestFilter.
+     * Creates a filter that serves requests from the local cache when
+     * possible.
+     *
      * @param cacheRegion The cache region to use
      * @param cacheOnly <code>true</code> if requests should be forced to come from the cache
      * without checking their freshness, e.g. if the server is known to be offline.

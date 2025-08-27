@@ -14,7 +14,9 @@ import picocli.CommandLine.HelpCommand;
 import picocli.CommandLine.Option;
 
 /**
- * Top level command for running all other commands
+ * Entry point for the REST file server command line interface. This command
+ * configures the connection to the server and provides access to the various
+ * subcommands.
  *
  * @author tonyj
  */
@@ -50,12 +52,24 @@ public class TopLevelCommand {
 
     @Option(names = "--auth", description = "Provide (jwt) authorization token")
     private String authToken;
-    
+
+    /**
+     * Launches the command line interface.
+     *
+     * @param args command line arguments
+     */
     public static void main(String[] args) {
         int exitCode = new CommandLine(new TopLevelCommand()).execute(args);
         System.exit(exitCode);
     }
 
+    /**
+     * Creates a {@link FileSystem} for interacting with the REST file server
+     * using the configured options.
+     *
+     * @return a new file system instance
+     * @throws IOException if the file system cannot be created
+     */
     FileSystem createFileSystem() throws IOException {
         URI uri = URI.create(restServer);
         HashMap<String, Object> options = new HashMap<>();
