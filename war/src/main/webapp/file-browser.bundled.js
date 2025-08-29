@@ -1710,7 +1710,7 @@ var oo=!1;oo||(oo=!0,wr.MIN_VALUE=-999999,wr.MAX_VALUE=999999,mr.ZERO=new mr(0,0
         :host {
           display: block;
         }
-    `}static get properties(){return{restURL:{type:String,notify:!0},data:{type:Object,notify:!0},path:{type:String,notify:!0},name:{type:String,notify:!0},selectedVersion:{type:String,notify:!0},fileChanged:{type:Boolean,notify:!0},readOnly:{type:Boolean,notify:!0},allowChanges:{type:Boolean,notify:!0},showHidden:{type:Boolean,notify:!0}}}constructor(){super(),this.restURL="",this.data={versions:[]},this.path=".",this.selectedVersion="default",this.fileChanged=!1,this.readOnly=!0,this.allowChanges=!1,this.showHidden=!1}render(){let t=new lo;return j`
+    `}static get properties(){return{restURL:{type:String,notify:!0},data:{type:Object,notify:!0},path:{type:String,notify:!0},name:{type:String,notify:!0},selectedVersion:{type:String,notify:!0},fileChanged:{type:Boolean,notify:!0},readOnly:{type:Boolean,notify:!0},allowChanges:{type:Boolean,notify:!0},showHidden:{type:Boolean,notify:!0},showDiff:{type:Boolean,notify:!0},diffVersion1:{type:String,notify:!0},diffVersion2:{type:String,notify:!0}}}constructor(){super(),this.restURL="",this.data={versions:[]},this.path=".",this.selectedVersion="default",this.fileChanged=!1,this.readOnly=!0,this.allowChanges=!1,this.showHidden=!1,this.showDiff=!1,this.diffVersion1="",this.diffVersion2=""}render(){let t=new lo;return j`
       <table>
         <thead>
           <tr><td colspan=3><input id="showHidden" type="checkbox" @click=${this._showHidden} ?checked=${this.showHidden}><label for="showHidden">Show Hidden</label></td></tr>
@@ -1731,19 +1731,31 @@ var oo=!1;oo||(oo=!0,wr.MIN_VALUE=-999999,wr.MAX_VALUE=999999,mr.ZERO=new mr(0,0
           `)}
         </tbody>
       </table>
-      Version: <select id="selectedVersion" @change=${this._selectionChanged} ?disabled=${!this.readOnly}>
-        <option value="default" ?selected=${"default"==this.selectedVersion}>default</option>
-        <option value="latest" ?selected=${"latest"==this.selectedVersion}>latest</option>
-        ${ot(this.data.versions,t=>t.version,(t,i)=>j`
-          <option value=${t.version} ?selected=${this.selectedVersion==t.version}>${t.version}</option>
-        `)}
+      ${this.showDiff?j`
+        <div id="diffViewer">Diff Viewer:
+          <select id="diffV1" @change=${this._diffSelectionChanged} data-side="v1">
+            ${ot(this.data.versions,t=>t.version,(t,i)=>t.hidden?null:j`<option value=${t.version} ?selected=${this.diffVersion1==t.version}>${t.version}</option>`)}
+          </select>
+          <select id="diffV2" @change=${this._diffSelectionChanged} data-side="v2">
+            ${ot(this.data.versions,t=>t.version,(t,i)=>t.hidden?null:j`<option value=${t.version} ?selected=${this.diffVersion2==t.version}>${t.version}</option>`)}
+          </select>
+          <button @click=${this._closeDiff}>Close</button>
+          <ace-editor readonly name="diff.diff" fileURL="${this.restURL+"version/diff/"+this.path+"?v1="+this.diffVersion1+"&v2="+this.diffVersion2}"></ace-editor>
+        </div>
+      `:j`
+        Version: <select id="selectedVersion" @change=${this._selectionChanged} ?disabled=${!this.readOnly}>
+          <option value="default" ?selected=${"default"==this.selectedVersion}>default</option>
+          <option value="latest" ?selected=${"latest"==this.selectedVersion}>latest</option>
+          ${ot(this.data.versions,t=>t.version,(t,i)=>j`
+            <option value=${t.version} ?selected=${this.selectedVersion==t.version}>${t.version}</option>
+          `)}
         </select>
-
         ${this.allowChanges?j`
           <button @click=${this._edit} ?disabled=${!this.readOnly}>Edit</button>
           <button @click=${this._cancel} ?disabled=${this.readOnly}>Cancel</button>
           <button @click=${this._save} ?disabled=${!this.fileChanged}>Save</button>
-          <button>Diff Viewer (coming soon)</button>`:null}
+          <button @click=${this._showDiff} ?disabled=${this.data.versions.filter(t=>!t.hidden).length<2}>Diff Viewer</button>`:null}
         <ace-editor @file-changed=${this._fileChanged} ?readonly=${this.readOnly} name=${this.name} fileURL="${this.restURL+"version/download/"+this.path+"?version="+("default"==this.selectedVersion&&this.data.default?this.data.default:this.selectedVersion)}"></ace-editor>
-    `}firstUpdated(t){this._updateData()}_updateData(){fetch(this.restURL+"version/info/"+this.path,{method:"GET",headers:{"x-protocol-version":"2"}}).then(t=>t.json()).then(t=>this.data=t)}_selectionChanged(){let t=this.shadowRoot.querySelector("#selectedVersion");this.selectedVersion=t.value}_getSelectedVersion(t){return(t.path?t.path[0].id:t.currentTarget.id).substring(1)}_makeDefault(t){let i={version:this._getSelectedVersion(t),default:!0};this._updateSettings(i)}_hide(t){let i=this._getSelectedVersion(t),n={version:i,hidden:!this.data.versions[i-1].hidden};this._updateSettings(n)}_updateComment(t){let i=this._getSelectedVersion(t),n={version:i,comment:this.shadowRoot.querySelector("#c"+i).value};this._updateSettings(n)}_updateSettings(t){let i={"Content-type":"application/json; charset=UTF-8","x-protocol-version":"2"};ho&&(i.Authorization="Bearer "+ho),fetch(this.restURL+"version/setOptions/"+this.path,{method:"PUT",body:JSON.stringify(t),headers:i}).then(t=>t.json()).then(t=>this.data=t)}_showHidden(t){this.showHidden=!this.showHidden}_edit(){this.readOnly=!1;let t=this.shadowRoot.querySelector("ace-editor");t.readonly=!1,t.focus()}_cancel(){let t=this.shadowRoot.querySelector("ace-editor");t.fileChanged&&t.reset(),t.readonly=!0,this.readOnly=!0}_fileChanged(t){this.fileChanged=t.detail.isChanged}_save(){let t=this.shadowRoot.querySelector("ace-editor");t.postTo(this.restURL+"version/upload/"+this.path).then(t=>this._updateData()),this.fileChanged=!1,t.readonly=!1,this.readOnly=!0,this.selectedVersion="latest"}}class lo{constructor(){this.referenceTime=Qs.now()}format(t){if(null==t)return"";let i=Qs.ofEpochMilli(t),n=Ns.ofPattern("yyyy-MM-dd HH:mm");return Ys.ofInstant(i).format(n)}humanFileSize(t,i=!1,n=1){const e=i?1e3:1024;if(Math.abs(t)<e)return t;const r=i?["k","M","G","T","P","E","Z","Y"]:["KiB","MiB","GiB","TiB","PiB","EiB","ZiB","YiB"];let s=-1;const o=10**n;do{t/=e,++s}while(Math.round(Math.abs(t)*o)/o>=e&&s<r.length-1);return t.toFixed(n)+r[s]}}window.customElements.define("file-browser",uo),window.customElements.define("path-browser",ao),window.customElements.define("ace-editor",co),window.customElements.define("file-versions",fo);export{co as AceEditor,uo as FileBrowser,fo as FileVersions,ao as PathBrowser};
+      `}
+    `}firstUpdated(t){this._updateData()}_updateData(){fetch(this.restURL+"version/info/"+this.path,{method:"GET",headers:{"x-protocol-version":"2"}}).then(t=>t.json()).then(t=>this.data=t)}_selectionChanged(){let t=this.shadowRoot.querySelector("#selectedVersion");this.selectedVersion=t.value}_getSelectedVersion(t){return(t.path?t.path[0].id:t.currentTarget.id).substring(1)}_makeDefault(t){let i={version:this._getSelectedVersion(t),default:!0};this._updateSettings(i)}_hide(t){let i=this._getSelectedVersion(t),n={version:i,hidden:!this.data.versions[i-1].hidden};this._updateSettings(n)}_updateComment(t){let i=this._getSelectedVersion(t),n={version:i,comment:this.shadowRoot.querySelector("#c"+i).value};this._updateSettings(n)}_updateSettings(t){let i={"Content-type":"application/json; charset=UTF-8","x-protocol-version":"2"};ho&&(i.Authorization="Bearer "+ho),fetch(this.restURL+"version/setOptions/"+this.path,{method:"PUT",body:JSON.stringify(t),headers:i}).then(t=>t.json()).then(t=>this.data=t)}_showHidden(t){this.showHidden=!this.showHidden}_edit(){this.readOnly=!1;let t=this.shadowRoot.querySelector("ace-editor");t.readonly=!1,t.focus()}_cancel(){let t=this.shadowRoot.querySelector("ace-editor");t.fileChanged&&t.reset(),t.readonly=!0,this.readOnly=!0}_showDiff(){let t=this.data.versions.filter(t=>!t.hidden);if(t.length>1){this.diffVersion2=String(this.data.latest);if(this.data.default&&this.data.default!=this.data.latest&&!this.data.versions[this.data.default-1].hidden)this.diffVersion1=String(this.data.default);else{let i=t.findIndex(e=>e.version==this.data.latest);this.diffVersion1=i>0?String(t[i-1].version):String(this.data.latest)}this.showDiff=!0}}_closeDiff(){this.showDiff=!1}_diffSelectionChanged(t){"v1"==t.target.dataset.side?this.diffVersion1=t.target.value:this.diffVersion2=t.target.value}_fileChanged(t){this.fileChanged=t.detail.isChanged}_save(){let t=this.shadowRoot.querySelector("ace-editor");t.postTo(this.restURL+"version/upload/"+this.path).then(t=>this._updateData()),this.fileChanged=!1,t.readonly=!1,this.readOnly=!0,this.selectedVersion="latest"}}class lo{constructor(){this.referenceTime=Qs.now()}format(t){if(null==t)return"";let i=Qs.ofEpochMilli(t),n=Ns.ofPattern("yyyy-MM-dd HH:mm");return Ys.ofInstant(i).format(n)}humanFileSize(t,i=!1,n=1){const e=i?1e3:1024;if(Math.abs(t)<e)return t;const r=i?["k","M","G","T","P","E","Z","Y"]:["KiB","MiB","GiB","TiB","PiB","EiB","ZiB","YiB"];let s=-1;const o=10**n;do{t/=e,++s}while(Math.round(Math.abs(t)*o)/o>=e&&s<r.length-1);return t.toFixed(n)+r[s]}}window.customElements.define("file-browser",uo),window.customElements.define("path-browser",ao),window.customElements.define("ace-editor",co),window.customElements.define("file-versions",fo);export{co as AceEditor,uo as FileBrowser,fo as FileVersions,ao as PathBrowser};
 //# sourceMappingURL=file-browser.bundled.js.map
