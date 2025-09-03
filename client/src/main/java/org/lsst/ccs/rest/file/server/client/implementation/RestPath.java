@@ -1,11 +1,9 @@
 package org.lsst.ccs.rest.file.server.client.implementation;
 
 import org.lsst.ccs.rest.file.server.client.implementation.unixlike.AbstractPath;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileSystem;
-import java.nio.file.NoSuchFileException;
 import java.util.List;
 import org.lsst.ccs.web.rest.file.server.data.RestFileInfo;
 
@@ -45,10 +43,18 @@ class RestPath extends AbstractPath {
 
     synchronized boolean isVersionedFile() throws IOException {
         if (isVersionedFile == null) {
-            RestFileInfo info = getClient().getRestFileInfo(this);
-            isVersionedFile = info.isVersionedFile();
+            if ( super.version != null ) {
+                isVersionedFile = true;
+            } else {
+                RestFileInfo info = getClient().getRestFileInfo(this);
+                isVersionedFile = info.isVersionedFile();
+            }
         }
         return isVersionedFile != null && isVersionedFile;
+    }
+    
+    String getVersion() {
+        return super.version;
     }
 
     String getRestPath() {

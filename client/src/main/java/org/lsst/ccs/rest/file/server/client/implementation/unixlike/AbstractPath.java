@@ -14,6 +14,9 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.lsst.ccs.rest.file.server.client.VersionOpenOption;
 
 /**
  * An implementation of {@link Path} that works for any Unix-like file system
@@ -30,6 +33,8 @@ public abstract class AbstractPath implements Path {
     private final boolean isAbsolute;
     private final LinkedList<String> path;
     private final AbstractPathBuilder builder;
+    private static final Pattern VERSIONED_FILE_PATTERN = Pattern.compile("(?<filename>.*)([(]{1}?(((?<version>[a-zA-Z0-9]*)))[)]{1})(\\.(?<extension>[a-zA-Z]*))?");
+    protected String version = null;
 
     /**
      * Creates a path from a string representation.
@@ -43,6 +48,16 @@ public abstract class AbstractPath implements Path {
         if (this.isAbsolute) {
             path = path.substring(1);
         }
+        
+        Matcher m = VERSIONED_FILE_PATTERN.matcher(path);        
+        if ( m.matches() ) {
+            path = m.group("filename");
+            version = VersionOpenOption.of(m.group("version")).value();
+            String extension = m.group("extension");
+            if ( extension != null && !extension.isEmpty() ) {
+                path += "."+extension;
+            }
+        } 
         // TODO: check for illegal characters
         this.path = path.isEmpty() ? EMPTY_PATH : new LinkedList<>(Arrays.asList(path.split(DELIMETER + "+")));
     }
