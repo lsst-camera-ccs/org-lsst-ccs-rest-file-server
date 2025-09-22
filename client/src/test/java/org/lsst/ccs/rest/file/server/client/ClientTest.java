@@ -193,6 +193,57 @@ public class ClientTest {
     }
 
     @Test
+    public void pathBasedVersionTest() throws IOException {
+        Path pathInRestServer = restfs.getPath("anotherVersioned.txt");
+        assertFalse(Files.exists(pathInRestServer));
+        final String content = "This is a test file";
+        try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer, VersionOpenOption.LATEST)) {
+            writer.append(content);
+        }
+        BasicFileAttributes basicAttributes = Files.readAttributes(pathInRestServer, BasicFileAttributes.class);
+        assertFalse(basicAttributes.isDirectory());
+        VersionedFileAttributes versionAttributes = Files.readAttributes(pathInRestServer, VersionedFileAttributes.class);
+        assertTrue(versionAttributes.getDefaultVersion() == 1);        
+
+        VersionedFileAttributeView versionView = Files.getFileAttributeView(pathInRestServer, VersionedFileAttributeView.class);
+        assertTrue(versionView.readAttributes().getDefaultVersion() == 1);
+        assertTrue(versionView.readAttributes().getLatestVersion() == 1);
+
+        final String newContent = "This is some new content";
+        try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer)) {
+            writer.append(newContent);
+        }
+        assertTrue(versionView.readAttributes().getDefaultVersion() == 1);
+        assertTrue(versionView.readAttributes().getLatestVersion() == 2);
+        
+        // Lets try reading the version file using a file path based version
+        Path newPathInRestServer2 = restfs.getPath("anotherVersioned(2).txt");
+        try (BufferedReader reader = Files.newBufferedReader(newPathInRestServer2)) {
+            String newerContent = reader.readLine();
+            assertEquals(newContent, newerContent);
+        }    
+
+        Path newPathInRestServer1 = restfs.getPath("anotherVersioned(1).txt");
+        try (BufferedReader reader = Files.newBufferedReader(newPathInRestServer1)) {
+            String newerContent = reader.readLine();
+            assertEquals(content, newerContent);
+        }   
+
+        Path newPathInRestServerd = restfs.getPath("anotherVersioned(d).txt");
+        try (BufferedReader reader = Files.newBufferedReader(newPathInRestServerd)) {
+            String newerContent = reader.readLine();
+            assertEquals(content, newerContent);
+        }           
+
+        Path newPathInRestServerl = restfs.getPath("anotherVersioned(l).txt");
+        try (BufferedReader reader = Files.newBufferedReader(newPathInRestServerl)) {
+            String newerContent = reader.readLine();
+            assertEquals(newContent, newerContent);
+        }   
+    }
+    
+    
+    @Test
     public void extendedVersionTest() throws IOException {
 
         Path pathInRestServer = restfs.getPath("versioned.txt");
