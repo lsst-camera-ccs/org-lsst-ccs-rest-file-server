@@ -41,13 +41,23 @@ class RestPath extends AbstractPath {
     }
 
     RestPath(RestFileSystem fileSystem, boolean absolute, List<String> path) {
-        super(fileSystem, absolute, path);
-        this.version = null;
-        this.fileSystem = fileSystem;
-        this.isReadOnly = false;
-        this.presetInfo = null;
+        this(fileSystem, fullPath(path, absolute));
     }
 
+    private static String fullPath(List<String> path, boolean absolute) {
+        String result = "";
+        int count = 0;
+        for ( String p : path ) {
+            count++;
+            result += p;
+            if ( count < path.size() ) {
+                result += DELIMETER;
+            }
+            
+        }
+        return absolute ? DELIMETER+result : result;
+    }
+        
     synchronized boolean isVersionedFile() throws IOException {
         if (isVersionedFile == null) {
             if ( version != null ) {
