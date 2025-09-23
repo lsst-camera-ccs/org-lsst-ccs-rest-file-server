@@ -26,9 +26,15 @@ class RestPath extends AbstractPath {
 //        this.isVersionedFile = info.isVersionedFile();
 //    }
     private RestFileSystem fileSystem;
+    private String version;
 
     RestPath(RestFileSystem fileSystem, String path) {
-        super(fileSystem, path);
+        this(fileSystem, new VersionedPathCheck(path));
+    }
+    
+    private RestPath(RestFileSystem fileSystem, VersionedPathCheck path) {
+        super(fileSystem, path.getPathWithVersionRemoved());
+        this.version = path.getVersion();
         this.fileSystem = fileSystem;
         this.isReadOnly = false;
         this.presetInfo = null;
@@ -36,6 +42,7 @@ class RestPath extends AbstractPath {
 
     RestPath(RestFileSystem fileSystem, boolean absolute, List<String> path) {
         super(fileSystem, absolute, path);
+        this.version = null;
         this.fileSystem = fileSystem;
         this.isReadOnly = false;
         this.presetInfo = null;
@@ -43,7 +50,7 @@ class RestPath extends AbstractPath {
 
     synchronized boolean isVersionedFile() throws IOException {
         if (isVersionedFile == null) {
-            if ( super.version != null ) {
+            if ( version != null ) {
                 isVersionedFile = true;
             } else {
                 RestFileInfo info = getClient().getRestFileInfo(this);
@@ -54,7 +61,7 @@ class RestPath extends AbstractPath {
     }
     
     String getVersion() {
-        return super.version;
+        return version;
     }
 
     String getRestPath() {
