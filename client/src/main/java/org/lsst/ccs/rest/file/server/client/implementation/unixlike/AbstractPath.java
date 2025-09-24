@@ -25,7 +25,7 @@ import java.util.Objects;
  */
 public abstract class AbstractPath implements Path {
 
-    private final static String DELIMETER = "/";
+    protected final static String DELIMETER = "/";
     private final static LinkedList<String> EMPTY_PATH = new LinkedList<>();
     private final boolean isAbsolute;
     private final LinkedList<String> path;

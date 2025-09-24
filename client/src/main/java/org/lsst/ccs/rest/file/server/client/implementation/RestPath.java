@@ -1,11 +1,9 @@
 package org.lsst.ccs.rest.file.server.client.implementation;
 
 import org.lsst.ccs.rest.file.server.client.implementation.unixlike.AbstractPath;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileSystem;
-import java.nio.file.NoSuchFileException;
 import java.util.List;
 import org.lsst.ccs.web.rest.file.server.data.RestFileInfo;
 
@@ -28,27 +26,52 @@ class RestPath extends AbstractPath {
 //        this.isVersionedFile = info.isVersionedFile();
 //    }
     private RestFileSystem fileSystem;
+    private String version;
 
     RestPath(RestFileSystem fileSystem, String path) {
-        super(fileSystem, path);
+        this(fileSystem, new VersionedPathCheck(path));
+    }
+    
+    private RestPath(RestFileSystem fileSystem, VersionedPathCheck path) {
+        super(fileSystem, path.getPathWithVersionRemoved());
+        this.version = path.getVersion();
         this.fileSystem = fileSystem;
         this.isReadOnly = false;
         this.presetInfo = null;
     }
 
     RestPath(RestFileSystem fileSystem, boolean absolute, List<String> path) {
-        super(fileSystem, absolute, path);
-        this.fileSystem = fileSystem;
-        this.isReadOnly = false;
-        this.presetInfo = null;
+        this(fileSystem, fullPath(path, absolute));
     }
 
+    private static String fullPath(List<String> path, boolean absolute) {
+        String result = "";
+        int count = 0;
+        for ( String p : path ) {
+            count++;
+            result += p;
+            if ( count < path.size() ) {
+                result += DELIMETER;
+            }
+            
+        }
+        return absolute ? DELIMETER+result : result;
+    }
+        
     synchronized boolean isVersionedFile() throws IOException {
         if (isVersionedFile == null) {
-            RestFileInfo info = getClient().getRestFileInfo(this);
-            isVersionedFile = info.isVersionedFile();
+            if ( version != null ) {
+                isVersionedFile = true;
+            } else {
+                RestFileInfo info = getClient().getRestFileInfo(this);
+                isVersionedFile = info.isVersionedFile();
+            }
         }
         return isVersionedFile != null && isVersionedFile;
+    }
+    
+    String getVersion() {
+        return version;
     }
 
     String getRestPath() {

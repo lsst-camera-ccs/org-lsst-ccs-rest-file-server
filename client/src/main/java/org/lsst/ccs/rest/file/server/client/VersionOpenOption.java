@@ -47,10 +47,10 @@ public class VersionOpenOption implements OpenOption {
      * @throws IllegalArgumentException if the string cannot be parsed
      */
     public static VersionOpenOption of(String version) {
-        if (LATEST.value.equals(version)) {
+        if (LATEST.value.equals(version) || LATEST.value.substring(0,1).equals(version)) {
             return LATEST;
         }
-        if (DEFAULT.value.equals(version)) {
+        if (DEFAULT.value.equals(version) || DEFAULT.value.substring(0,1).equals(version) ) {
             return DEFAULT;
         }
         try {

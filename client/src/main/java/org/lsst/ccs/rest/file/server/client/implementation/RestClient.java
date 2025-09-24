@@ -30,6 +30,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
@@ -56,6 +58,8 @@ import org.lsst.ccs.web.rest.file.server.data.VersionOptions;
  */
 class RestClient implements Closeable {
 
+    private static final Logger LOG = Logger.getLogger(RestClient.class.getName());
+    
     private final Client client;
     private final URI restURI;
     private final URI mountPoint;
@@ -71,12 +75,33 @@ class RestClient implements Closeable {
     }
 
     private WebTarget getRestTarget(String restPath, RestPath path) throws IOException {
-        return client.target(getRestURI(restPath, path));
+        WebTarget target = client.target(getRestURI(restPath, path));
+        if ( path.getVersion() != null ) {
+            target = target.queryParam("version", path.getVersion());
+        }
+        return target;
     }
 
+    private OpenOption[] addOpenVersionOptionFromPathIfNeeded(RestPath path, OpenOption[] options) throws IOException {
+        OpenOption[] tmpOptions = options;
+        if (path.isVersionedFile()) {            
+            String versionFromPath = path.getVersion();
+            if ( versionFromPath != null ) {
+                VersionOpenOption versionOpenOptionFromPath = VersionOpenOption.of(versionFromPath);
+                LOG.log(Level.FINE,"Versioned file {0} with version {1}", new Object[]{path.toString(), versionOpenOptionFromPath.value()});
+                OpenOption[] newOptions = Arrays.copyOf(tmpOptions, tmpOptions.length + 1);
+                newOptions[tmpOptions.length] = versionOpenOptionFromPath;            
+                tmpOptions = newOptions;
+            }
+        }        
+        return tmpOptions;
+    }
+    
+    
     InputStream newInputStream(RestPath path, OpenOption[] options) throws IOException {
         URI uri;
-        if (path.isVersionedFile()) {
+        if (path.isVersionedFile()) {            
+            options = addOpenVersionOptionFromPathIfNeeded(path, options);            
             if (hasOption(options, VersionedOpenOption.DIFF)) {
                 UriBuilder builder = UriBuilder.fromUri(getRestURI("rest/version/diff/", path));
                 List<VersionOpenOption> vos = getOptions(options, VersionOpenOption.class);
@@ -194,7 +219,15 @@ class RestClient implements Closeable {
         RestFileInfo info = getRestFileInfo(path);
         if (info.isVersionedFile()) {
             VersionInfoV2 vinfo = getVersionedRestFileInfo(path);
-            RestFileInfo latest = vinfo.getVersions().get(vinfo.getDefault() - 1);
+            int version = vinfo.getDefault();
+            String versionFromPath = path.getVersion();
+            if ( versionFromPath != null ) {
+                try {
+                    version = Integer.parseInt(versionFromPath);
+                } catch (NumberFormatException e){
+                }
+            }
+            RestFileInfo latest = vinfo.getVersions().get(version - 1);
             return new RestFileAttributes(latest);
         } else {
             return new RestFileAttributes(info);
