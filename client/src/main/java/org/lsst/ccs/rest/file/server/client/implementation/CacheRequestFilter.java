@@ -16,19 +16,19 @@ import org.lsst.ccs.rest.file.server.client.implementation.Cache.CacheEntry;
  */
 class CacheRequestFilter implements ClientRequestFilter {
 
-    private final Cache cache;
+    private final String cacheRegion;
     private final boolean cacheOnly;
 
     /**
      * Creates a filter that serves requests from the local cache when
      * possible.
      *
-     * @param cache the backing cache
-     * @param cacheOnly {@code true} to avoid contacting the server and rely
-     *                  solely on cached data
+     * @param cacheRegion The cache region to use
+     * @param cacheOnly <code>true</code> if requests should be forced to come from the cache
+     * without checking their freshness, e.g. if the server is known to be offline.
      */
-    CacheRequestFilter(Cache cache, boolean cacheOnly) {
-        this.cache = cache;
+    CacheRequestFilter(String cacheRegion, boolean cacheOnly) {
+        this.cacheRegion = cacheRegion;
         this.cacheOnly = cacheOnly;
     }
 
@@ -41,7 +41,7 @@ class CacheRequestFilter implements ClientRequestFilter {
             return;
         }
 
-        CacheEntry entry = cache.getEntry(ctx.getUri());
+        CacheEntry entry = CacheBuilder.getCache().getEntry(ctx.getUri(), cacheRegion);
         if (entry == null) {
             if (cacheOnly) {
                 throw new OfflineException("Read of non-cached item in offline mode " + ctx.getUri());
