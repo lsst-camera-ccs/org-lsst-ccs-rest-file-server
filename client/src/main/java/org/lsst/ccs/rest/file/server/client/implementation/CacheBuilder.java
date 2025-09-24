@@ -40,4 +40,12 @@ abstract class CacheBuilder {
         return cacheInstance;
     }
 
+    public static void closeCache() throws IOException {
+        if ( cacheInstance != null ) {
+            cacheInstance.close();
+            cacheInstance = null;
+        }
+    }
+    
+    
 }

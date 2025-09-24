@@ -146,7 +146,7 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
         provider.dispose(getFullURI());
         restClient.close();
         if (cacheResponseFilter != null) {
-            CacheBuilder.getCache().close();
+            CacheBuilder.closeCache();
         }
     }
 
