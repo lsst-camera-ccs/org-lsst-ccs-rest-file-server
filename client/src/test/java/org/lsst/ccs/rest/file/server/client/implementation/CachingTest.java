@@ -12,7 +12,6 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.stream.Collectors;
 import javax.ws.rs.core.UriBuilder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -45,7 +44,6 @@ public class CachingTest {
         TestServer testServer = new TestServer(port);
         URI restRootURI = UriBuilder.fromUri(testServer.getServerURI()).scheme("ccs").build();
         final Path tempDir = Files.createTempDirectory("rfs");
-        String cacheName = "default";
         Map<String, Object> env = RestFileSystemOptions.builder()
                 .cacheLocation(tempDir)
                 .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
@@ -67,7 +65,7 @@ public class CachingTest {
             URI fileUri = new URI(tmpFileUri.toString().replace("ccs:", "http:"));
             
             listAndRead(pathInRestServer, content, 1);
-            CacheEntry e = cache.getEntry(fileUri,cacheName);
+            CacheEntry e = cache.getEntry(fileUri);
             assertNotNull(e);
             assertEquals(0, e.getUpdateCount());
             
@@ -87,7 +85,7 @@ public class CachingTest {
             String expectedContents = cacheMode == RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE ? content : content+content;
             listAndRead(pathInRestServer, expectedContents, 1);
             // Note, cache entry will have changed, so need to refetch it
-            e = cache.getEntry(fileUri,cacheName);
+            e = cache.getEntry(fileUri);
             assertNotNull(e);
             assertEquals(0, e.getUpdateCount());
 
@@ -184,7 +182,7 @@ public class CachingTest {
                     .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
                     .set(RestFileSystemOptions.CacheFallback.OFFLINE)
                     .build();
-            try (Cache c = new Cache(new RestFileSystemOptionsHelper(env), new Properties())) {
+            try (FileSystem restfs = FileSystems.newFileSystem(restRootURI, env)) {
 
                 URI restRootURI2 = UriBuilder.fromUri(testServer2.getServerURI()).scheme("ccs").build();
                 Map<String, Object> env2 = RestFileSystemOptions.builder()
@@ -193,15 +191,14 @@ public class CachingTest {
                         .set(RestFileSystemOptions.CacheFallback.OFFLINE)
                         .build();
                 try {
-
-                    Cache c1 = new Cache(new RestFileSystemOptionsHelper(env2), new Properties());
+                    FileSystems.newFileSystem(restRootURI2, env2);
                     fail();
                 } catch (IOException x) {
                     assertTrue(x.getMessage().contains("in use"));
                 }
 
                 env2.put(RestFileSystemOptions.ALLOW_ALTERNATE_CACHE_LOCATION, true);
-                try (Cache c2 = new Cache(new RestFileSystemOptionsHelper(env2), new Properties())) {
+                try (FileSystem restfs2 = FileSystems.newFileSystem(restRootURI2, env2)) {
                     // We should get here
                 }
             }
