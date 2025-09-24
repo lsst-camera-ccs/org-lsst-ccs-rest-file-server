@@ -248,7 +248,7 @@ public class ClientTest {
 
         Path pathInRestServer = restfs.getPath("versioned.txt");
         assertFalse(Files.exists(pathInRestServer));
-        final String content = "This is a test file";
+        final String content = "This is a test file\nwith two lines";
         try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer, VersionOpenOption.LATEST)) {
             writer.append(content);
         }
@@ -288,20 +288,36 @@ public class ClientTest {
             // expected
         }
         
+        final String[] splitContent = content.split("\n");
+
         try (InputStream in = Files.newInputStream(pathInRestServer, VersionedOpenOption.DIFF, VersionOpenOption.of(2), VersionOpenOption.of(1));
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
             List<String> lines = reader.lines().collect(Collectors.toList());
-            assertEquals(5, lines.size());
-            assertEquals("-" + content, lines.get(3));
-            assertEquals("+" + newContent, lines.get(4));
+            //System.out.println(String.join("\n", lines));
+            assertEquals(6, lines.size());
+            assertEquals("-" + splitContent[0], lines.get(3));
+            assertEquals("-" + splitContent[1], lines.get(4));
+            assertEquals("+" + newContent, lines.get(5));
         }
 
+        try (InputStream in = Files.newInputStream(pathInRestServer, VersionedOpenOption.DIFF, VersionOpenOption.of(1), VersionOpenOption.of(2));
+                BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
+            List<String> lines = reader.lines().collect(Collectors.toList());
+            //System.out.println(String.join("\n", lines));
+            assertEquals(6, lines.size());
+            assertEquals("+" + splitContent[0], lines.get(4));
+            assertEquals("+" + splitContent[1], lines.get(5));
+            assertEquals("-" + newContent, lines.get(3));
+        }
+        
+        
         try (InputStream in = Files.newInputStream(pathInRestServer, VersionedOpenOption.DIFF);
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
             List<String> lines = reader.lines().collect(Collectors.toList());
-            assertEquals(5, lines.size());
-            assertEquals("-" + content, lines.get(3));
-            assertEquals("+" + newContent, lines.get(4));
+            assertEquals(6, lines.size());
+            assertEquals("-" + splitContent[0], lines.get(3));
+            assertEquals("-" + splitContent[1], lines.get(4));
+            assertEquals("+" + newContent, lines.get(5));
         }
 
         try (InputStream in = Files.newInputStream(pathInRestServer, VersionedOpenOption.DIFF, VersionOpenOption.of(1))) {

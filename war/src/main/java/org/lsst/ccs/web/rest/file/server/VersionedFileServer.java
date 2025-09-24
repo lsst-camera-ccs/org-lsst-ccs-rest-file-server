@@ -193,7 +193,7 @@ public class VersionedFileServer {
         List<String> lines1 = Files.readAllLines(file1);
         List<String> lines2 = Files.readAllLines(file2);
         Patch<String> diff = DiffUtils.diff(lines2, lines1);
-        List<String> diffList = UnifiedDiffUtils.generateUnifiedDiff(vf.getFileName() + ";" + iv2, vf.getFileName() + ";" + iv1, lines1, diff, 2);
+        List<String> diffList = UnifiedDiffUtils.generateUnifiedDiff(vf.getFileName() + ";" + iv2, vf.getFileName() + ";" + iv1, lines2, diff, 2);
         EntityTag eTag = new EntityTag(ETagHelper.computeEtag((Serializable) diffList));
         Response.ResponseBuilder builder = request.evaluatePreconditions(eTag);
         if (builder != null) {

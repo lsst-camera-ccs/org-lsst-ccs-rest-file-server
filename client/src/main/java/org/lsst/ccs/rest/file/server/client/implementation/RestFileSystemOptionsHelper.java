@@ -125,14 +125,13 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
         if (result == null) {
             result = defaultValue;
         }
-        // TODO: Fix unsafe cast (how?)
         if (type.isInstance(result)) {
             return type.cast(result);
         } else if (result instanceof String) {
             try {
                 Method method = type.getMethod("valueOf", String.class);
                 if (type.isAssignableFrom(method.getReturnType())) {
-                    return (T) method.invoke(null, result);
+                    return type.cast(method.invoke(null, result));
                 } 
             } catch (ReflectiveOperationException x) {
                 // Just fall through to the IllegalArgumentException
