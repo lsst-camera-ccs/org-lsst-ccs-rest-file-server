@@ -141,7 +141,13 @@ public class VersionedFileTest {
         List<Path> files = Files.list(parent).collect(Collectors.toList());
         assertEquals(expectedListSize, files.size());
         
-        //assertTrue(Files.isSameFile(path, files.get(0)));
+        RestPath restPath = ((RestPath)path);
+        Path p = path;
+        if ( restPath.isVersionedFile() ) {
+            p = new RestPath((RestFileSystem)path.getFileSystem(), ((RestPath)path).getRestPath());
+        }
+        
+        assertTrue(Files.isSameFile(p, files.get(0)));
         List<String> lines = Files.lines(path).collect(Collectors.toList());
         assertEquals(1, lines.size());
         assertEquals(content, lines.get(0));
@@ -150,6 +156,6 @@ public class VersionedFileTest {
         BasicFileAttributes attributes = Files.readAttributes(path, BasicFileAttributes.class);
         assertEquals(expectedSize, attributes.size());
 
-        assertEquals("text/plain", Files.probeContentType(new RestPath((RestFileSystem)path.getFileSystem(), ((RestPath)path).getRestPath())));
+        assertEquals("text/plain", Files.probeContentType(p));
     }
 }
