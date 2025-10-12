@@ -27,14 +27,16 @@ class RestPath extends AbstractPath {
 //    }
     private RestFileSystem fileSystem;
     private String version;
+    private String pathWithoutVersion;
 
     RestPath(RestFileSystem fileSystem, String path) {
         this(fileSystem, new VersionedPathCheck(path));
     }
     
     private RestPath(RestFileSystem fileSystem, VersionedPathCheck path) {
-        super(fileSystem, path.getPathWithVersionRemoved());
+        super(fileSystem, path.getOriginalPath());
         this.version = path.getVersion();
+        this.pathWithoutVersion = path.getPathWithVersionRemoved();
         this.fileSystem = fileSystem;
         this.isReadOnly = false;
         this.presetInfo = null;
@@ -75,7 +77,8 @@ class RestPath extends AbstractPath {
     }
 
     String getRestPath() {
-        return toAbsolutePath().toString().substring(1);
+        //return toAbsolutePath().toString().substring(1);
+        return isAbsolute() ? pathWithoutVersion.substring(1) : pathWithoutVersion;
     }
 
     RestClient getClient() {
