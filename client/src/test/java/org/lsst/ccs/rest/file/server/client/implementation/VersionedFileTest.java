@@ -150,6 +150,6 @@ public class VersionedFileTest {
         BasicFileAttributes attributes = Files.readAttributes(path, BasicFileAttributes.class);
         assertEquals(expectedSize, attributes.size());
 
-        assertEquals("text/plain", Files.probeContentType(path));
+        assertEquals("text/plain", Files.probeContentType(new RestPath((RestFileSystem)path.getFileSystem(), ((RestPath)path).getRestPath())));
     }
 }
