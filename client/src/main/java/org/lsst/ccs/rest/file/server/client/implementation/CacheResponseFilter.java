@@ -16,19 +16,16 @@ import org.lsst.ccs.rest.file.server.client.implementation.Cache.CacheEntry;
  */
 class CacheResponseFilter implements ClientResponseFilter {
 
-    private final String cacheRegion;
-    private boolean expireCacheEntry;
+    private final Cache cache;
 
     /**
      * Creates a new response filter that updates the local cache with data
      * returned from the server.
      *
-     * @param cacheRegion the cache region used to store responses
-     * @param expireCacheEntry true/false to specify if the remote entry must be checked for updates.
+     * @param cache the cache used to store responses
      */
-    CacheResponseFilter(String cacheRegion, boolean expireCacheEntry) {
-        this.cacheRegion = cacheRegion;
-        this.expireCacheEntry = expireCacheEntry;
+    CacheResponseFilter(Cache cache) {
+        this.cache = cache;
     }
 
     @Override
@@ -40,10 +37,10 @@ class CacheResponseFilter implements ClientResponseFilter {
         }
 
         if (response.getStatus() == Response.Status.OK.getStatusCode()) {
-            CacheBuilder.getCache().cacheResponse(response, request.getUri(), expireCacheEntry, cacheRegion);
+            cache.cacheResponse(response, request.getUri());
         } else if (response.getStatus() == Response.Status.NOT_MODIFIED.getStatusCode()) {
             // Use the cache
-            CacheEntry entry = CacheBuilder.getCache().getEntry(request.getUri(), cacheRegion);
+            CacheEntry entry = cache.getEntry(request.getUri());
             entry.updateCacheHeaders(response);
             response.getHeaders().clear();
             response.setStatus(Response.Status.OK.getStatusCode());
@@ -52,10 +49,4 @@ class CacheResponseFilter implements ClientResponseFilter {
             response.setEntityStream(is);
         }
     }
-    
-    //For tests
-    void setExpireCacheEntry(boolean expireCacheEntry) {
-        this.expireCacheEntry = expireCacheEntry;
-    }
-    
 }
