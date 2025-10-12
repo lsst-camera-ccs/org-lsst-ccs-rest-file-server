@@ -32,9 +32,9 @@ public class VersionedPathCheck {
             if ( extension != null && !extension.isEmpty() ) {
                 path += "."+extension;
             }
+            LOG.log(Level.FINE, "Input path {0} path with version removed {1} version {2}", new Object[]{originalPath, path, version});
         }
         this.pathWithVersionRemoved = path;
-        LOG.log(Level.INFO, "Input path {0} path with version removed {1} version {2}", new Object[]{originalPath, pathWithVersionRemoved, version});
     }
 
     public String getOriginalPath() {

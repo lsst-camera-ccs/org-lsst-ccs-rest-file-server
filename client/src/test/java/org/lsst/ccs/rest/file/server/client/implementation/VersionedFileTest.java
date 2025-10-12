@@ -51,12 +51,12 @@ public class VersionedFileTest {
     
     @Test
     public void cacheOfflineTest()  throws URISyntaxException, IOException, InterruptedException {
-        cacheTest(9997, RestFileSystemOptions.CacheFallback.OFFLINE);
+        cacheTest(9994, RestFileSystemOptions.CacheFallback.OFFLINE);
     }
 
     @Test
     public void cacheWhenPossibleTest()  throws URISyntaxException, IOException, InterruptedException {
-        cacheTest(9997, RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE);
+        cacheTest(9995, RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE);
     }
 
     public void cacheTest(int port, RestFileSystemOptions.CacheFallback cacheMode) throws URISyntaxException, IOException, InterruptedException {

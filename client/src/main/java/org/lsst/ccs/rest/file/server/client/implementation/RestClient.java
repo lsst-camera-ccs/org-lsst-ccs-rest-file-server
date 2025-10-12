@@ -88,7 +88,7 @@ class RestClient implements Closeable {
             String versionFromPath = path.getVersion();
             if ( versionFromPath != null ) {
                 VersionOpenOption versionOpenOptionFromPath = VersionOpenOption.of(versionFromPath);
-                LOG.log(Level.INFO,"Versioned file {0} with version {1}", new Object[]{path.toString(), versionOpenOptionFromPath.value()});
+                LOG.log(Level.FINE,"Versioned file {0} with version {1}", new Object[]{path.toString(), versionOpenOptionFromPath.value()});
                 OpenOption[] newOptions = Arrays.copyOf(tmpOptions, tmpOptions.length + 1);
                 newOptions[tmpOptions.length] = versionOpenOptionFromPath;            
                 tmpOptions = newOptions;
@@ -99,7 +99,7 @@ class RestClient implements Closeable {
     
     
     InputStream newInputStream(RestPath path, OpenOption[] options) throws IOException {
-        LOG.log(Level.INFO, "Reading {0} with options {1}", new Object[]{path, Arrays.toString(options)});
+        LOG.log(Level.FINE, "Reading {0} with options {1}", new Object[]{path, Arrays.toString(options)});
         URI uri;
         if (path.isVersionedFile()) {            
             options = addOpenVersionOptionFromPathIfNeeded(path, options);            
@@ -125,7 +125,7 @@ class RestClient implements Closeable {
         }
         WebTarget target = client.target(uri);
         Response response = target.request(MediaType.APPLICATION_OCTET_STREAM).get();
-        LOG.log(Level.INFO, "Read {0} with uri {1} with response {2}", new Object[]{path, uri, response.getStatus()});
+        LOG.log(Level.FINE, "Read {0} with uri {1} with response {2}", new Object[]{path, uri, response.getStatus()});
         if (response.getStatus() == 404) {
             throw new FileNotFoundException(path.toString());
         }
