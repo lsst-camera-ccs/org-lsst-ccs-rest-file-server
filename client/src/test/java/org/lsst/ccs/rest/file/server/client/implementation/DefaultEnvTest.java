@@ -35,4 +35,20 @@ public class DefaultEnvTest {
         assertTrue(restFileSystemOptionsHelper.allowAlternateCacheLoction());
         assertEquals("/tmp", restFileSystemOptionsHelper.getDiskCacheLocation().toAbsolutePath().toString());
     }
+    
+    @Test
+    public void defaultEnvTest1() {
+        String jsonEnv = " {\"CacheOptions\":\"MEMORY_AND_DISK\",\"CacheLocation\":\"~/ccs/cache/remoteFileSystem\"}";
+        System.setProperty("org.lsst.ccs.rest.file.client.defaultEnvironment", jsonEnv);
+        
+        RestFileSystemOptionsHelper optionsHelper = new RestFileSystemOptionsHelper(null);
+        
+        assertEquals(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK, optionsHelper.getCacheOptions());
+        assertEquals(optionsHelper.getDiskCacheLocation().toString(),"~/ccs/cache/remoteFileSystem");
+        
+        
+        
+        System.setProperty("org.lsst.ccs.rest.file.client.defaultEnvironment", "");
+        
+    }
 }
