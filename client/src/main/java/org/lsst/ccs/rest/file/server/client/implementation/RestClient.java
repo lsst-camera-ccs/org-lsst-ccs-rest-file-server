@@ -99,13 +99,14 @@ class RestClient implements Closeable {
     
     
     InputStream newInputStream(RestPath path, OpenOption[] options) throws IOException {
+        LOG.log(Level.FINE, "Reading {0} with options {1}", new Object[]{path, Arrays.toString(options)});
         URI uri;
         if (path.isVersionedFile()) {            
             options = addOpenVersionOptionFromPathIfNeeded(path, options);            
             if (hasOption(options, VersionedOpenOption.DIFF)) {
                 UriBuilder builder = UriBuilder.fromUri(getRestURI("rest/version/diff/", path));
                 List<VersionOpenOption> vos = getOptions(options, VersionOpenOption.class);
-                if (vos.size() > 0) { 
+                if (!vos.isEmpty()) { 
                     builder.queryParam("v1", vos.get(0).value());
                     if (vos.size() > 1) { 
                         builder.queryParam("v2", vos.get(1).value());
@@ -124,6 +125,7 @@ class RestClient implements Closeable {
         }
         WebTarget target = client.target(uri);
         Response response = target.request(MediaType.APPLICATION_OCTET_STREAM).get();
+        LOG.log(Level.FINE, "Read {0} with uri {1} with response {2}", new Object[]{path, uri, response.getStatus()});
         if (response.getStatus() == 404) {
             throw new FileNotFoundException(path.toString());
         }
@@ -158,10 +160,10 @@ class RestClient implements Closeable {
                     throw new InterruptedIOException("Interrupt during file close");
                 } catch (ExecutionException x) {
                     final Throwable cause = x.getCause();
-                    if (cause instanceof ProcessingException) {
-                        throw convertProcessingException((ProcessingException) cause);
-                    } else if (cause instanceof IOException) {
-                        throw (IOException) cause;
+                    if (cause instanceof ProcessingException processingException) {
+                        throw convertProcessingException(processingException);
+                    } else if (cause instanceof IOException iOException) {
+                        throw iOException;
                     } else {
                         throw new IOException("Error during file close", cause);
                     }
@@ -361,8 +363,8 @@ class RestClient implements Closeable {
     }
 
     static IOException convertProcessingException(ProcessingException x) {
-        if (x.getCause() instanceof IOException) {
-            return (IOException) x.getCause();
+        if (x.getCause() instanceof IOException iOException) {
+            return iOException;
         } else {
             return new IOException("Error talking to rest server", x);
         }

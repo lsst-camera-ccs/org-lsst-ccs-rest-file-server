@@ -4,7 +4,7 @@
 
     <groupId>org.lsst</groupId>
     <artifactId>org-lsst-ccs-rest-file-server</artifactId>
-    <version>1.1.9-SNAPSHOT</version>
+    <version>1.1.10-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>LSST CCS - Rest File Server - Parent</name>
@@ -12,7 +12,7 @@
     <parent>
         <groupId>org.lsst</groupId>
         <artifactId>org-lsst-ccs-parent</artifactId>
-        <version>3.1.5</version>
+        <version>3.2.3-SNAPSHOT</version>
         <relativePath />
     </parent>
     
@@ -28,13 +28,13 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <org_lsst_ccs_project_type>utility</org_lsst_ccs_project_type>
         <org_lsst_ccs_project_jira_prefix>rest-file-server</org_lsst_ccs_project_jira_prefix>
-        <org.lsst.ccs.site.url>https://repo-nexus.lsst.org/nexus/content/sites/${org.lsst.ccs.site.name}/site-root/utilities/org-lsst-ccs-rest-file-server/${project.version}</org.lsst.ccs.site.url>
+        <org.lsst.ccs.site.dir>site-root/utilities/org-lsst-ccs-rest-file-server/${project.version}</org.lsst.ccs.site.dir>
     </properties>
 
     <scm>
         <url>https://github.com/lsst-camera-ccs/org-lsst-ccs-rest-file-server</url>
         <connection>scm:git:git://github.com/lsst-camera-ccs/org-lsst-ccs-rest-file-server.git</connection>
-        <developerConnection>scm:git:https://${env.GIT_USERNAME}:${env.GIT_PASSWORD}@github.com/lsst-camera-ccs/org-lsst-ccs-rest-file-server.git</developerConnection>
+        <developerConnection>scm:git:ssh://git@github.com/lsst-camera-ccs/org-lsst-ccs-rest-file-server.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
 
@@ -53,9 +53,9 @@
     
     <distributionManagement>
        <site>
-            <id>lsst-maven2-site</id>
-            <name>LSST Maven2 central site repository</name>
-            <url>dav:${org.lsst.ccs.site.url}</url>
+            <id>github</id>
+            <name>LSST Public pages in github</name>
+            <url>scm:git:https://${env.GIT_USERNAME}:${env.GIT_PASSWORD}@github.com/lsst-camera-ccs/org-lsst-ccs-site.git</url>
         </site>
     </distributionManagement>
 

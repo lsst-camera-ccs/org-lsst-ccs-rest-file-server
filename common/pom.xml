@@ -4,7 +4,7 @@
 
     <groupId>org.lsst</groupId>
     <artifactId>org-lsst-ccs-rest-file-server-common</artifactId>
-    <version>1.1.9-SNAPSHOT</version>
+    <version>1.1.10-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>LSST CCS - Rest File Server - Common Data classes</name>
@@ -13,16 +13,20 @@
         <relativePath>../</relativePath>
         <groupId>org.lsst</groupId>
         <artifactId>org-lsst-ccs-rest-file-server</artifactId>
-        <version>1.1.9-SNAPSHOT</version>
+        <version>1.1.10-SNAPSHOT</version>
     </parent>
 
     <distributionManagement>
         <site>
-            <id>lsst-maven2-site</id>
+            <id>github</id>
             <name>LSST Maven2 centreal site repository</name>
-            <url>dav:${org.lsst.ccs.site.url}</url>
+            <url>scm:git:https://${env.GIT_USERNAME}:${env.GIT_PASSWORD}@github.com/lsst-camera-ccs/org-lsst-ccs-site.git</url>
         </site>
     </distributionManagement>
+
+    <properties>
+        <org.lsst.ccs.site.dir>site-root/utilities/org-lsst-ccs-rest-file-server/${project.version}/${project.artifactId}</org.lsst.ccs.site.dir>
+    </properties>
 
     <dependencies>
         <dependency>

@@ -1,7 +1,6 @@
 package org.lsst.ccs.rest.file.server.client.implementation;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.util.LinkedHashMap;
