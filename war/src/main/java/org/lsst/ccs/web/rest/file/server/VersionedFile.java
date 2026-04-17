@@ -4,13 +4,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.nio.file.attribute.UserDefinedFileAttributeView;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Properties;
@@ -31,7 +29,6 @@ public class VersionedFile {
     private static final Set<PosixFilePermission> READ_ONLY = PosixFilePermissions.fromString("r--r--r--");
     private static final String LATEST = "latest";
     private static final String DEFAULT = "default";
-    private static final String USER_VERSIONED_FILE = "user.isVersionedFile";
     private static final String META_FILE_NAME = "version-meta.properties";
     private static final String HIDDEN_VERSIONS_PROPERTY = "hidden-versions";
     private static final String COMMENT_PROPERTY = "comment.";
@@ -67,20 +64,10 @@ public class VersionedFile {
             return false;
         }
         boolean hasMetaFile = Files.exists(path.resolve(META_FILE_NAME));
-        UserDefinedFileAttributeView view = Files.getFileAttributeView(path, UserDefinedFileAttributeView.class);
-        // Relying on file attributes is a bad idea, since they are not maintaied by tools like rsync
-        // So accept either file attribute or existance of meta-file 
-        if (!view.list().contains(USER_VERSIONED_FILE) && !hasMetaFile) {
-            return false;
-        }
-        if (!Files.isSymbolicLink(path.resolve(LATEST)) || !Files.isSymbolicLink(path.resolve(DEFAULT))) {
-            return false;
-        }
-        // Old files did not have the meta-file, so create it here if missing
         if (!hasMetaFile) {
-            createMetaFile(path);
+            return false;
         }
-        return true;
+        return !(!Files.isSymbolicLink(path.resolve(LATEST)) || !Files.isSymbolicLink(path.resolve(DEFAULT)));
     }
 
     /**
@@ -287,8 +274,6 @@ public class VersionedFile {
             throw new IOException("File already exists: " + path);
         }
         Path dir = Files.createDirectory(path);
-        UserDefinedFileAttributeView view = Files.getFileAttributeView(dir, UserDefinedFileAttributeView.class);
-        view.write(USER_VERSIONED_FILE, Charset.defaultCharset().encode("true"));
         Path file = dir.resolve("1");
         Files.write(file, content);
         Files.setPosixFilePermissions(file, READ_ONLY);
@@ -340,8 +325,6 @@ public class VersionedFile {
         }
         Path tempName = unversionedFile.resolveSibling(unversionedFile.getFileName() + "$$TMP$$");
         Path dir = Files.createDirectory(tempName);
-        UserDefinedFileAttributeView view = Files.getFileAttributeView(dir, UserDefinedFileAttributeView.class);
-        view.write(USER_VERSIONED_FILE, Charset.defaultCharset().encode("true"));
         Path newFileName = tempName.resolve("1");
         Files.move(unversionedFile, newFileName);
         Files.setPosixFilePermissions(newFileName, READ_ONLY);
