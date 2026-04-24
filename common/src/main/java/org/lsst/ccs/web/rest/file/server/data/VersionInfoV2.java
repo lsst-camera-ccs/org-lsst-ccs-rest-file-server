@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,19 +24,18 @@ public class VersionInfoV2 implements Serializable {
     private final int defaultVersion;
     private final int latestVersion;
     private final List<VersionInfoV2.Version> versions;
+    private final List<DefaultChangeRecord> defaultHistory;
 
-    /**
-     * Creates a new {@code VersionInfoV2} from JSON properties.
-     *
-     * @param defaultVersion default version number
-     * @param latestVersion latest version number
-     * @param versions list of available versions
-     */
     @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
-    public VersionInfoV2(@JsonProperty("default") int defaultVersion, @JsonProperty("latest") int latestVersion, @JsonProperty("versions") List<Version> versions) {
+    public VersionInfoV2(@JsonProperty("default") int defaultVersion, @JsonProperty("latest") int latestVersion, @JsonProperty("versions") List<Version> versions, @JsonProperty("defaultHistory") List<DefaultChangeRecord> defaultHistory) {
         this.defaultVersion = defaultVersion;
         this.latestVersion = latestVersion;
         this.versions = versions;
+        this.defaultHistory = defaultHistory == null ? Collections.emptyList() : defaultHistory;
+    }
+
+    public VersionInfoV2(int defaultVersion, int latestVersion, List<Version> versions) {
+        this(defaultVersion, latestVersion, versions, Collections.emptyList());
     }
 
     /**
@@ -65,6 +65,10 @@ public class VersionInfoV2 implements Serializable {
         return versions;
     }
 
+    public List<DefaultChangeRecord> getDefaultHistory() {
+        return defaultHistory;
+    }
+
     /**
      * Downgrades this object to an older protocol version if necessary.
      *
@@ -84,6 +88,7 @@ public class VersionInfoV2 implements Serializable {
         private final int version;
         private final boolean hidden;
         private final String comment;
+        private final String creator;
 
         /**
          * Creates a {@code Version} from JSON properties.
@@ -104,6 +109,7 @@ public class VersionInfoV2 implements Serializable {
          * @param version version number
          * @param hidden {@code true} if the version is hidden
          * @param comment version comment
+         * @param creator creator of this version
          */
         @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
         public Version(
@@ -122,12 +128,14 @@ public class VersionInfoV2 implements Serializable {
             @JsonProperty("children") List<RestFileInfo> children,
             @JsonProperty("version") int version,
             @JsonProperty("hidden") boolean hidden,
-            @JsonProperty("comment") String comment) {
+            @JsonProperty("comment") String comment,
+            @JsonProperty("creator") String creator) {
 
             super(lastModified, creationTime, lastAccessTime, size, mimeType, name, fileKey, directory, other, regularFile, symbolicLink, versionedFile, children);
             this.version = version;
             this.hidden = hidden;
             this.comment = comment == null ? "" : comment;
+            this.creator = creator == null ? "" : creator;
         }
 
         /**
@@ -140,11 +148,12 @@ public class VersionInfoV2 implements Serializable {
          * @param comment version comment
          * @throws IOException if the content type cannot be determined
          */
-        public Version(Path file, BasicFileAttributes fileAttributes, int version, boolean hidden, String comment) throws IOException {
+        public Version(Path file, BasicFileAttributes fileAttributes, int version, boolean hidden, String comment, String creator) throws IOException {
             super(file, fileAttributes, false);
             this.version = version;
             this.hidden = hidden;
             this.comment = comment;
+            this.creator = creator == null ? "" : creator;
         }
 
         /**
@@ -172,6 +181,10 @@ public class VersionInfoV2 implements Serializable {
          */
         public String getComment() {
             return comment;
+        }
+
+        public String getCreator() {
+            return creator;
         }
     }
 

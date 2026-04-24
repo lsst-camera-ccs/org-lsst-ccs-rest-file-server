@@ -33,6 +33,8 @@ public class JWTTokenNeededFilter implements ContainerRequestFilter {
     @Context
     private HttpServletRequest httpServletRequest;
     
+    public static final String JWT_UID_PROPERTY = "jwt.uid";
+
     private static final String allowedIPs = System.getenv("CCS_REST_ALLOWED_IPS");
     private static final Pattern ALLOWED_IPS_PATTERN = allowedIPs == null ? null : Pattern.compile(allowedIPs);
 
@@ -78,6 +80,10 @@ public class JWTTokenNeededFilter implements ContainerRequestFilter {
                 FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(token);
                 String uid = decodedToken.getUid();
                 System.out.println("Got uid " + uid);
+                String email = decodedToken.getEmail();
+                String name = decodedToken.getName();
+                String creator = email != null ? email : (name != null ? name : uid);
+                requestContext.setProperty(JWT_UID_PROPERTY, creator);
             } catch (FirebaseAuthException e) {
                 requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
             }

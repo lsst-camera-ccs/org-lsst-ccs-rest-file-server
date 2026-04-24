@@ -1,5 +1,7 @@
 package org.lsst.ccs.web.rest.file.server;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,13 +11,17 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.lsst.ccs.web.rest.file.server.data.DefaultChangeRecord;
 
 /**
  * Encapsulation of a versioned file. The current implementation stores the file
@@ -30,8 +36,11 @@ public class VersionedFile {
     private static final String LATEST = "latest";
     private static final String DEFAULT = "default";
     private static final String META_FILE_NAME = "version-meta.properties";
+    private static final String DEFAULT_HISTORY_FILE_NAME = "default-history.json";
     private static final String HIDDEN_VERSIONS_PROPERTY = "hidden-versions";
     private static final String COMMENT_PROPERTY = "comment.";
+    private static final String CREATOR_PROPERTY = "creator.";
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
 
     private final Properties meta;
@@ -235,6 +244,29 @@ public class VersionedFile {
     void setComment(int version, String comment) throws IOException {
         meta.setProperty(COMMENT_PROPERTY + version, comment);
         updateMetaFile(path, meta);
+    }
+
+    String getCreator(int version) {
+        return meta.getProperty(CREATOR_PROPERTY + version, "");
+    }
+
+    void setCreator(int version, String creator) throws IOException {
+        meta.setProperty(CREATOR_PROPERTY + version, creator);
+        updateMetaFile(path, meta);
+    }
+
+    List<DefaultChangeRecord> getDefaultHistory() throws IOException {
+        Path historyFile = path.resolve(DEFAULT_HISTORY_FILE_NAME);
+        if (!Files.exists(historyFile)) {
+            return Collections.emptyList();
+        }
+        return OBJECT_MAPPER.readValue(historyFile.toFile(), new TypeReference<List<DefaultChangeRecord>>() {});
+    }
+
+    void recordDefaultChange(int version, String changedBy) throws IOException {
+        List<DefaultChangeRecord> history = new ArrayList<>(getDefaultHistory());
+        history.add(new DefaultChangeRecord(version, System.currentTimeMillis(), changedBy));
+        OBJECT_MAPPER.writeValue(path.resolve(DEFAULT_HISTORY_FILE_NAME).toFile(), history);
     }
 
     /**

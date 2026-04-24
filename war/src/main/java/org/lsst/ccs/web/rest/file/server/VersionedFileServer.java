@@ -19,6 +19,7 @@ import javax.servlet.ServletContext;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -37,6 +38,7 @@ import static org.lsst.ccs.web.rest.file.server.data.Constants.PROTOCOL_VERSION_
 import org.lsst.ccs.web.rest.file.server.data.VersionOptions;
 import org.lsst.ccs.web.rest.file.server.data.VersionInfoV2;
 import org.lsst.ccs.web.rest.file.server.jwt.JWTTokenNeeded;
+import org.lsst.ccs.web.rest.file.server.jwt.JWTTokenNeededFilter;
 
 /**
  * REST resource providing operations specific to {@link VersionedFile}
@@ -92,10 +94,10 @@ public class VersionedFileServer {
         for (int version : versions) {
             java.nio.file.Path child = cf.getPathForVersion(version);
             BasicFileAttributes fileAttributes = Files.getFileAttributeView(child, BasicFileAttributeView.class).readAttributes();
-            VersionInfoV2.Version info = new VersionInfoV2.Version(child, fileAttributes, version, cf.isHidden(version), cf.getComment(version));
+            VersionInfoV2.Version info = new VersionInfoV2.Version(child, fileAttributes, version, cf.isHidden(version), cf.getComment(version), cf.getCreator(version));
             fileVersions.add(info);
         }
-        VersionInfoV2 result = new VersionInfoV2(cf.getDefaultVersion(), cf.getLatestVersion(), fileVersions);
+        VersionInfoV2 result = new VersionInfoV2(cf.getDefaultVersion(), cf.getLatestVersion(), fileVersions, cf.getDefaultHistory());
         Serializable finalResult = result.downgrade(protocolVersion);
         EntityTag eTag = new EntityTag(ETagHelper.computeEtag(finalResult));
         Response.ResponseBuilder builder = request.evaluatePreconditions(eTag);
@@ -226,10 +228,12 @@ public class VersionedFileServer {
     @Path("set/{filePath: .*}")
     @JWTTokenNeeded
     @Consumes(MediaType.APPLICATION_JSON)
-    public Object set(@PathParam("filePath") String filePath, int defaultVersion, @Context Request request, @HeaderParam(PROTOCOL_VERSION_HEADER) Integer protocolVersion) throws IOException {
+    public Object set(@PathParam("filePath") String filePath, int defaultVersion, @Context Request request, @Context ContainerRequestContext requestContext, @HeaderParam(PROTOCOL_VERSION_HEADER) Integer protocolVersion) throws IOException {
         java.nio.file.Path path = baseDir.resolve(filePath);
         VersionedFile vf = new VersionedFile(path);
         vf.setDefaultVersion(defaultVersion);
+        String changedBy = (String) requestContext.getProperty(JWTTokenNeededFilter.JWT_UID_PROPERTY);
+        vf.recordDefaultChange(defaultVersion, changedBy);
         return info(filePath, request, protocolVersion);
     }
 
@@ -247,7 +251,7 @@ public class VersionedFileServer {
     @Path("setOptions/{filePath: .*}")
     @JWTTokenNeeded
     @Consumes(MediaType.APPLICATION_JSON)
-    public Object setOptions(@PathParam("filePath") String filePath, VersionOptions options, @Context Request request, @HeaderParam(PROTOCOL_VERSION_HEADER) Integer protocolVersion) throws IOException {
+    public Object setOptions(@PathParam("filePath") String filePath, VersionOptions options, @Context Request request, @Context ContainerRequestContext requestContext, @HeaderParam(PROTOCOL_VERSION_HEADER) Integer protocolVersion) throws IOException {
         java.nio.file.Path path = baseDir.resolve(filePath);
         VersionedFile vf = new VersionedFile(path);
         int version = options.getVersion();
@@ -259,6 +263,8 @@ public class VersionedFileServer {
         }
         if (options.getMakeDefault() != null && options.getMakeDefault()) {
             vf.setDefaultVersion(version);
+            String changedBy = (String) requestContext.getProperty(JWTTokenNeededFilter.JWT_UID_PROPERTY);
+            vf.recordDefaultChange(version, changedBy);
         }
         return info(filePath, request, protocolVersion);
     }
@@ -268,6 +274,8 @@ public class VersionedFileServer {
      * versioned file if it does not yet exist.
      *
      * @param filePath path to the versioned file
+     * @param comment
+     * @param requestContext
      * @param content file bytes to store
      * @return a map containing the new version number
      * @throws IOException if the upload fails
@@ -276,15 +284,29 @@ public class VersionedFileServer {
     @Path("upload/{filePath: .*}")
     @JWTTokenNeeded
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
-    public Object upload(@PathParam("filePath") String filePath, byte[] content) throws IOException {
+    public Object upload(@PathParam("filePath") String filePath, @QueryParam("comment") String comment, @Context ContainerRequestContext requestContext, byte[] content) throws IOException {
+        String creator = (String) requestContext.getProperty(JWTTokenNeededFilter.JWT_UID_PROPERTY);
         java.nio.file.Path path = baseDir.resolve(filePath);
         if (VersionedFile.isVersionedFile(path)) {
             VersionedFile vf = new VersionedFile(path);
             int newVersion = vf.addVersion(content, true);
+            if (comment != null) {
+                vf.setComment(newVersion, comment);
+            }
+            if (creator != null) {
+                vf.setCreator(newVersion, creator);
+            }
             return Collections.singletonMap("version", newVersion);
         } else {
             VersionedFile vf = VersionedFile.create(path, content);
-            return Collections.singletonMap("version", vf.getLatestVersion());
+            int newVersion = vf.getLatestVersion();
+            if (comment != null) {
+                vf.setComment(newVersion, comment);
+            }
+            if (creator != null) {
+                vf.setCreator(newVersion, creator);
+            }
+            return Collections.singletonMap("version", newVersion);
         }
     }
 
