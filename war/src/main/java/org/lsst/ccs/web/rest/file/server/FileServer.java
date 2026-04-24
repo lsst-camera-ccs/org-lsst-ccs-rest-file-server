@@ -10,21 +10,26 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import javax.inject.Inject;
 import javax.servlet.ServletContext;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
+import org.lsst.ccs.web.rest.file.server.jwt.JWTTokenNeeded;
 import javax.ws.rs.core.EntityTag;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Request;
@@ -33,6 +38,7 @@ import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.StreamingOutput;
 import org.jvnet.hk2.annotations.Optional;
 import org.lsst.ccs.web.rest.file.server.data.RestFileInfo;
+import org.lsst.ccs.web.rest.file.server.data.ServerInfo;
 
 /**
  * JAX-RS resource providing operations on non-versioned files. It exposes
@@ -44,6 +50,14 @@ import org.lsst.ccs.web.rest.file.server.data.RestFileInfo;
 @Path("/")
 @Produces(MediaType.APPLICATION_JSON)
 public class FileServer {
+
+    private static final String SERVER_VERSION = "1.1.10";
+    private static final List<String> SERVER_CAPABILITIES = Arrays.asList(
+            "hideFiles",
+            "versionComments",
+            "versionCreator",
+            "defaultHistory"
+    );
 
     @Inject
     @Optional
@@ -69,6 +83,17 @@ public class FileServer {
     }
 
     /**
+     * Returns the server version and supported capabilities.
+     *
+     * @return server info
+     */
+    @GET
+    @Path("serverInfo")
+    public ServerInfo serverInfo() {
+        return new ServerInfo(SERVER_VERSION, SERVER_CAPABILITIES);
+    }
+
+    /**
      * Lists the contents of the server's base directory.
      *
      * @param request the HTTP precondition request
@@ -78,7 +103,7 @@ public class FileServer {
     @GET
     @Path("list")
     public Response list(@Context Request request) throws IOException {
-        return list("", request);
+        return list("", false, request);
     }
 
     /**
@@ -86,13 +111,14 @@ public class FileServer {
      * about a file if the path points to a file.
      *
      * @param filePath relative path of the file or directory
+     * @param showHidden whether to include hidden entries in the listing
      * @param request the HTTP precondition request
      * @return metadata for the requested file or directory
      * @throws IOException if the path cannot be read
      */
     @GET
     @Path("list/{filePath: .*}")
-    public Response list(@PathParam("filePath") String filePath, @Context Request request) throws IOException {
+    public Response list(@PathParam("filePath") String filePath, @QueryParam("showHidden") boolean showHidden, @Context Request request) throws IOException {
         java.nio.file.Path file = baseDir.resolve(filePath);
         RestFileInfo fileProperties;
         boolean isDirectory = Files.isDirectory(file);
@@ -101,8 +127,17 @@ public class FileServer {
             try (Stream<java.nio.file.Path> list = Files.list(file)) {
                 listFiles = list.collect(Collectors.toList());
             }
+            DirectoryMetadata dm = new DirectoryMetadata(file);
+            Set<String> hiddenNames = dm.getHiddenNames();
             List<RestFileInfo> children = new ArrayList<>();
             for (java.nio.file.Path child : listFiles) {
+                String childName = child.getFileName().toString();
+                if (childName.equals(DirectoryMetadata.HIDDEN_FILE_NAME)) {
+                    continue;
+                }
+                if (!showHidden && hiddenNames.contains(childName)) {
+                    continue;
+                }
                 BasicFileAttributes childAttributes = Files.getFileAttributeView(child, BasicFileAttributeView.class).readAttributes();
                 final boolean isVersioned = VersionedFile.isVersionedFile(child);
                 if (isVersioned) {
@@ -110,10 +145,14 @@ public class FileServer {
                    childAttributes = Files.getFileAttributeView(vf.getLatest(), BasicFileAttributeView.class).readAttributes();
                 }
                 RestFileInfo childProperties = new RestFileInfo(child, childAttributes, isVersioned);
+                if (showHidden && hiddenNames.contains(childName)) {
+                    childProperties.setHidden(true);
+                }
                 children.add(childProperties);
             }
             children.sort((RestFileInfo o1, RestFileInfo o2) -> o1.getName().compareTo(o2.getName()));
             fileProperties = getFileAtrributes(file, filePath, children);
+            fileProperties.setHasHidden(!hiddenNames.isEmpty());
         } else {
             fileProperties = getFileAtrributes(file, filePath, null);
         }
@@ -251,6 +290,42 @@ public class FileServer {
     public Response deleteFile(@PathParam("filePath") String filePath) throws IOException {
         java.nio.file.Path file = baseDir.resolve(filePath);
         Files.delete(file);
+        return Response.ok().build();
+    }
+
+    public static class FileOptions {
+        private boolean hidden;
+
+        @JsonProperty("hidden")
+        public boolean isHidden() { return hidden; }
+
+        @JsonProperty("hidden")
+        public void setHidden(boolean hidden) { this.hidden = hidden; }
+    }
+
+    /**
+     * Sets options on a file or directory. Currently supports hiding or
+     * unhiding an entry from directory listings via the {@code hidden} field
+     * in the request body.
+     *
+     * @param filePath relative path of the target file or directory
+     * @param options options to apply
+     * @return an empty success response
+     * @throws IOException if the metadata cannot be updated
+     */
+    @PUT
+    @Path("setOptions/{filePath: .*}")
+    @JWTTokenNeeded
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response setOptions(@PathParam("filePath") String filePath, FileOptions options) throws IOException {
+        java.nio.file.Path file = baseDir.resolve(filePath);
+        if (!Files.exists(file)) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        java.nio.file.Path parent = file.getParent();
+        String name = file.getFileName().toString();
+        DirectoryMetadata dm = new DirectoryMetadata(parent);
+        dm.setHidden(name, options.isHidden());
         return Response.ok().build();
     }
 

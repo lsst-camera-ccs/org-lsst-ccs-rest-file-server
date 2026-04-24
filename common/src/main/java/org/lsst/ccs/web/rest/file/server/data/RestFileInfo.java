@@ -2,6 +2,7 @@ package org.lsst.ccs.web.rest.file.server.data;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
 import java.io.Serializable;
@@ -35,6 +36,10 @@ public class RestFileInfo implements Serializable {
     private final boolean isSymbolicLink;
     private final boolean isVersionedFile;
     private final List<RestFileInfo> children;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Boolean hasHidden;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private boolean hidden;
 
     /**
      * Creates a {@code RestFileInfo} from JSON properties.
@@ -257,6 +262,44 @@ public class RestFileInfo implements Serializable {
      */
     public List<RestFileInfo> getChildren() {
         return children;
+    }
+
+    /**
+     * Indicates whether this directory contains at least one hidden entry.
+     * Returns {@code null} for non-directory entries.
+     *
+     * @return {@code true} if hidden entries exist, {@code false} if none, or {@code null} if not a directory
+     */
+    public Boolean isHasHidden() {
+        return hasHidden;
+    }
+
+    /**
+     * Sets whether this directory contains hidden entries.
+     *
+     * @param hasHidden {@code true} if hidden entries exist
+     */
+    public void setHasHidden(boolean hasHidden) {
+        this.hasHidden = hasHidden;
+    }
+
+    /**
+     * Indicates whether this entry is hidden in its parent directory.
+     * Returns {@code null} when the hidden state is not known.
+     *
+     * @return {@code true} if this entry is hidden, {@code false} if visible
+     */
+    public boolean isHidden() {
+        return hidden;
+    }
+
+    /**
+     * Sets whether this entry is hidden in its parent directory.
+     *
+     * @param hidden {@code true} if this entry is hidden
+     */
+    public void setHidden(boolean hidden) {
+        this.hidden = hidden;
     }
 
     /**
