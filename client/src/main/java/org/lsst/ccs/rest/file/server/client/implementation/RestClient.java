@@ -296,7 +296,14 @@ class RestClient implements Closeable {
                 VersionOptions vo = new VersionOptions.Builder(version).setDefault().build();
                 Response response = putAndCheckResponse(getRestTarget("rest/version/setOptions/", path).request(MediaType.APPLICATION_JSON), Entity.entity(vo, MediaType.APPLICATION_JSON));
             }
-            
+
+            @Override
+            public void setSensitive(boolean sensitive) throws IOException {
+                // "sensitive" is a whole-file property; the builder version is unused by the server here.
+                VersionOptions vo = new VersionOptions.Builder(0).setSensitive(sensitive).build();
+                Response response = putAndCheckResponse(getRestTarget("rest/version/setOptions/", path).request(MediaType.APPLICATION_JSON), Entity.entity(vo, MediaType.APPLICATION_JSON));
+            }
+
         };
     }
 

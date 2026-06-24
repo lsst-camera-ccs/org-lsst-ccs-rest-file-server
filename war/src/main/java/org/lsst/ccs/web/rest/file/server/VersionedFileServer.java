@@ -97,7 +97,7 @@ public class VersionedFileServer {
             VersionInfoV2.Version info = new VersionInfoV2.Version(child, fileAttributes, version, cf.isHidden(version), cf.getComment(version), cf.getCreator(version));
             fileVersions.add(info);
         }
-        VersionInfoV2 result = new VersionInfoV2(cf.getDefaultVersion(), cf.getLatestVersion(), fileVersions, cf.getDefaultHistory());
+        VersionInfoV2 result = new VersionInfoV2(cf.getDefaultVersion(), cf.getLatestVersion(), fileVersions, cf.getDefaultHistory(), cf.isSensitive());
         Serializable finalResult = result.downgrade(protocolVersion);
         EntityTag eTag = new EntityTag(ETagHelper.computeEtag(finalResult));
         Response.ResponseBuilder builder = request.evaluatePreconditions(eTag);
@@ -265,6 +265,10 @@ public class VersionedFileServer {
             vf.setDefaultVersion(version);
             String changedBy = (String) requestContext.getProperty(JWTTokenNeededFilter.JWT_UID_PROPERTY);
             vf.recordDefaultChange(version, changedBy);
+        }
+        if (options.getSensitive() != null) {
+            // "sensitive" is a whole-file property; the version field is not consulted here.
+            vf.setSensitive(options.getSensitive());
         }
         return info(filePath, request, protocolVersion);
     }

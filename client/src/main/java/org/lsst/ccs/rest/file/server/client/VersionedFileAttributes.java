@@ -54,4 +54,12 @@ public interface VersionedFileAttributes extends BasicFileAttributes {
      * @return basic attributes of the specified version
      */
     BasicFileAttributes getAttributes(int version);
+
+    /**
+     * Indicates whether the file as a whole is marked sensitive. This is a
+     * property of the file, not of any individual version.
+     *
+     * @return {@code true} if the file is sensitive
+     */
+    boolean isSensitive();
 }

@@ -56,7 +56,8 @@ public class FileServer {
             "hideFiles",
             "versionComments",
             "versionCreator",
-            "defaultHistory"
+            "defaultHistory",
+            "sensitive"
     );
 
     @Inject

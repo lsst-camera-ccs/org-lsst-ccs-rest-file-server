@@ -15,6 +15,7 @@ public class VersionOptions {
     private final Boolean hidden;
     private final String comment;
     private final Boolean makeDefault;
+    private final Boolean sensitive;
 
     /**
      * Creates a new {@code VersionOptions} instance from JSON properties.
@@ -23,13 +24,15 @@ public class VersionOptions {
      * @param hidden whether the version should be hidden
      * @param comment comment associated with the version
      * @param makeDefault whether the version should be made the default
+     * @param sensitive whether the file as a whole should be marked sensitive
      */
     @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
-    public VersionOptions(@JsonProperty(value = "version") int version, @JsonProperty(value = "hidden") Boolean hidden, @JsonProperty(value = "comment") String comment, @JsonProperty(value = "default") Boolean makeDefault) {
+    public VersionOptions(@JsonProperty(value = "version") int version, @JsonProperty(value = "hidden") Boolean hidden, @JsonProperty(value = "comment") String comment, @JsonProperty(value = "default") Boolean makeDefault, @JsonProperty(value = "sensitive") Boolean sensitive) {
         this.version = version;
         this.hidden = hidden;
         this.comment = comment;
         this.makeDefault = makeDefault;
+        this.sensitive = sensitive;
     }
 
     /**
@@ -69,6 +72,16 @@ public class VersionOptions {
     }
 
     /**
+     * Indicates whether the file as a whole should be marked sensitive. This is
+     * a file-level property and does not depend on {@link #getVersion()}.
+     *
+     * @return {@code Boolean.TRUE} to mark sensitive, {@code Boolean.FALSE} to clear, or {@code null} to leave unchanged
+     */
+    public Boolean getSensitive() {
+        return sensitive;
+    }
+
+    /**
      * Builder for {@link VersionOptions} instances.
      */
     public static class Builder {
@@ -77,6 +90,7 @@ public class VersionOptions {
         private String comment;
         private boolean hidden;
         private boolean defaultVersion;
+        private Boolean sensitive;
 
         /**
          * Creates a new builder for the specified version.
@@ -120,12 +134,24 @@ public class VersionOptions {
         }
 
         /**
+         * Marks the file as a whole sensitive or not. This is a file-level
+         * property and is independent of the builder's version.
+         *
+         * @param sensitive {@code true} to mark sensitive
+         * @return this builder for chaining
+         */
+        public Builder setSensitive(boolean sensitive) {
+            this.sensitive = sensitive;
+            return this;
+        }
+
+        /**
          * Builds a {@link VersionOptions} instance.
          *
          * @return configured {@code VersionOptions}
          */
         public VersionOptions build() {
-            return new VersionOptions(version, hidden, comment, defaultVersion);
+            return new VersionOptions(version, hidden, comment, defaultVersion, sensitive);
         }
     }
     
