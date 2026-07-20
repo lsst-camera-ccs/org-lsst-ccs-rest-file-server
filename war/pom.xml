@@ -6,12 +6,12 @@
         <relativePath>../</relativePath>
         <groupId>org.lsst</groupId>
         <artifactId>org-lsst-ccs-rest-file-server</artifactId>
-        <version>1.1.10-SNAPSHOT</version>
+        <version>1.1.10</version>
     </parent>
 
     <groupId>org.lsst</groupId>
     <artifactId>org-lsst-ccs-rest-file-server-war</artifactId>
-    <version>1.1.10-SNAPSHOT</version>
+    <version>1.1.10</version>
     <packaging>war</packaging>
 
     <name>LSST CCS - Rest File Server - Server</name>
@@ -82,7 +82,7 @@
         <dependency>
             <groupId>org.lsst</groupId>
             <artifactId>org-lsst-ccs-rest-file-server-common</artifactId>
-            <version>1.1.10-SNAPSHOT</version>
+            <version>1.1.10</version>
         </dependency>
         <dependency>
             <groupId>jstl</groupId>
