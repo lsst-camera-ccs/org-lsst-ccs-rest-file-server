@@ -61,7 +61,17 @@ public class RestFileSystemProvider extends FileSystemProvider {
     public static void setDefaultFileSystemOption(Map<String, ?> defaultEnv) {
         defaultEnvironment = defaultEnv;
     }
-    
+
+    /**
+     * Returns the programmatic default options set via
+     * {@link #setDefaultFileSystemOption}, or {@code null} if none were set.
+     *
+     * @return the default environment map, or {@code null}
+     */
+    static Map<String, ?> getDefaultFileSystemOption() {
+        return defaultEnvironment;
+    }
+
     @Override
     public FileSystem newFileSystem(URI uri, Map<String, ?> env) throws IOException {
         if (env == null) {

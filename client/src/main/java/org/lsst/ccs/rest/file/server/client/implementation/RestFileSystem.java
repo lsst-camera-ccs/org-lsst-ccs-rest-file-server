@@ -73,9 +73,9 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
             cache = null;
         }
         client.register(new AddProtcolVersionRequestFilter());
-        Object jwt = env.get(RestFileSystemOptions.AUTH_TOKEN);
+        String jwt = options.getAuthToken();
         if (jwt != null) {
-            client.register(new AddJWTTokenRequestFilter(jwt.toString()));
+            client.register(new AddJWTTokenRequestFilter(jwt));
         }
         restClient = new RestClient(client, restURI, mountPoint);
     }

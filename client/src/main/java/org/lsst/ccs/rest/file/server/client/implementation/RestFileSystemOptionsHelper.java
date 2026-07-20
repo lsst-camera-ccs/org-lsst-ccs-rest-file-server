@@ -8,6 +8,7 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -25,15 +26,31 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
 
     /**
      * Creates a new helper.
+     * <p>
+     * Options are resolved per key with the following precedence, highest
+     * first: the explicitly supplied {@code env}, then the programmatic default
+     * set via {@link RestFileSystemOptions#setDefaultFileSystemEnvironment}, then
+     * the {@link RestFileSystemOptions#DEFAULT_ENV_PROPERTY} system-property JSON
+     * map, and finally the hardcoded fallback applied by {@link #getOption}. A
+     * key present at a higher level overrides the same key at a lower level; keys
+     * absent at a higher level fall through.
      *
      * @param env environment map supplied to the file system; may be {@code null}
      */
     RestFileSystemOptionsHelper(Map<String, ?> env) {
-        if (env == null) {
-            this.env = createDefaultOptions();
-        } else {
-            this.env = env;
+        Map<String, Object> merged = new HashMap<>();
+        Map<String, ?> propertyDefaults = createDefaultOptions();
+        if (propertyDefaults != null) {
+            merged.putAll(propertyDefaults);
         }
+        Map<String, ?> programmaticDefaults = RestFileSystemProvider.getDefaultFileSystemOption();
+        if (programmaticDefaults != null) {
+            merged.putAll(programmaticDefaults);
+        }
+        if (env != null) {
+            merged.putAll(env);
+        }
+        this.env = merged;
     }
 
     /**
@@ -52,6 +69,16 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
      */
     RestFileSystemOptions.SSLOptions isUseSSL() {
         return getOption(RestFileSystemOptions.USE_SSL, RestFileSystemOptions.SSLOptions.class, RestFileSystemOptions.SSLOptions.AUTO);
+    }
+
+    /**
+     * Returns the JWT authorization token, resolved through the option cascade.
+     *
+     * @return the token, or {@code null} if none was configured
+     */
+    String getAuthToken() {
+        Object result = env.get(RestFileSystemOptions.AUTH_TOKEN);
+        return result == null ? null : result.toString();
     }
 
     /**

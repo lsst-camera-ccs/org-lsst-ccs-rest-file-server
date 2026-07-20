@@ -5,36 +5,25 @@
 
 ## State
 
-Per-file-system cache isolation (LSSTCCS-3029) is **implemented and tested** — not yet
-merged. Each `ccs://` file system now gets its own JCS region and its own disk directory,
-keyed off a stable hash of `getFullURI()`. `CACHE_LOCATION` is now a *base* directory; each
-server caches under `<base>/<key>`. Changes: `Cache.java` (per-server key, region, disk
-subdir, `getRegion()`/`getDiskCacheLocation()` getters), `RestFileSystem.java` (passes
-`getFullURI()` to `Cache`), `disk.ccf` (tokenized `%REGION%`/`%AUX%`), and `CachingTest.java`
-(rewrote `cacheLockTest` for same-server contention, added `multiServerSharedBaseTest`).
+Two changes on branch `LSSTCCS-3029`, **implemented and tested, not yet merged**. All 35
+client tests pass.
 
-All 32 client tests pass. The ADR's main risk is resolved: repeated `ccm.configure(props)`
-on the singleton **accumulates** regions rather than resetting them.
+1. **Per-file-system cache isolation** (ADR 0001, workplan LSSTCCS-3029). Each `ccs://` file
+   system gets its own JCS region and disk directory, keyed off a stable hash of
+   `getFullURI()`. `CACHE_LOCATION` is now a *base* directory; each server caches under
+   `<base>/<key>`. Committed as `666f59c`. The ADR's main risk is resolved: repeated
+   `ccm.configure(props)` on the singleton **accumulates** regions rather than resetting them.
 
-Background from the investigation: previously every `Cache` used the JVM-global
-`CompositeCacheManager` singleton with the hardcoded region `"default"` / auxiliary `"DC"`,
-so all file systems shared one region, disk store, and memory budget — and two
-`MEMORY_AND_DISK` mounts sharing a `CACHE_LOCATION` collided on the disk lock. See ADR 0001
-and workplan LSSTCCS-3029.
+2. **Option resolution cascade** (ADR 0002). Options now resolve per key: explicit env →
+   programmatic default → `DEFAULT_ENV_PROPERTY` system property → hardcoded fallback, merged
+   in the `RestFileSystemOptionsHelper` constructor. This makes the system property live on
+   the bootstrap `newFileSystem(uri, null)` path (it was previously shadowed by the non-null
+   empty `NO_ENV` map). Auth token now read through the helper too. Not yet committed.
 
 ## Next up
 
-- Review + merge LSSTCCS-3029.
-- Then tackle the default-policy / wiring gap below (isolation is now safe under multiple
-  mounts, so the sequencing precondition is met).
-
-## Backlog / deferred
-
-- **Default policy at bootstrap + system-property wiring gap.** We want bootstrap mounts to
-  default to `MEMORY_AND_DISK`, but `RestFileSystemProvider.newFileSystem` (`:66-69`) sets
-  `env = NO_ENV` (a non-null empty map) when the caller passes `null`, which shadows the
-  `DEFAULT_ENV_PROPERTY` system property — `RestFileSystemOptionsHelper` only consults the
-  property when `env` is null (`:31-37`), so the property is effectively dead on the normal
-  path. Needs a decision on resolution order (per-key cascade vs. coarse first-non-empty)
-  and where to resolve it. Graduate to its own ADR + workplan when it firms up. Sequencing:
-  the isolation work (3029) should land first so the default is safe under multiple mounts.
+- Commit the cascade work (ADR 0002 + helper/provider/RestFileSystem/DefaultEnvTest changes).
+- Review + merge branch `LSSTCCS-3029`.
+- Decide and set the actual bootstrap default policy (e.g. system property
+  `{"CacheOptions":"MEMORY_AND_DISK","CacheLocation":"..."}`) — the mechanism now works; the
+  chosen values/location for base and summit are a deployment-config decision, not code.
