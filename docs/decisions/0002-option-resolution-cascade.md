@@ -41,6 +41,17 @@ The JWT auth token, previously read straight from the raw `env` in `RestFileSyst
 read through the helper (`getAuthToken()`) so it honors the cascade too and cannot NPE on a
 null `env`.
 
+## Tilde and path normalization
+
+A `CacheLocation` supplied as a **string** (the JSON-property path — the case that never
+passes through a shell) now has a leading `~` expanded to `user.home` and is run through
+`Path.normalize()` to collapse `.`/`..`. Java has no built-in `~` expansion (it is a shell
+convention), so without this a property value like `~/ccs/cache` would create a literal `~`
+directory under the working directory. Only a leading `~` or `~/` is expanded; `~user` and
+non-leading tildes are left untouched. Values supplied as `Path` or `File` (e.g. the toolkit's
+`RemoteFileServer`, which resolves `user.home` itself) are unaffected — only the string branch
+of `getDiskCacheLocation()` changed.
+
 ## Consequences
 
 - The bootstrap can set a single system-property default (e.g.

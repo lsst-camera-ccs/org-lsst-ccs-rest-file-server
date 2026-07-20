@@ -123,10 +123,30 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
         } else if (result instanceof File) {
             return ((File) result).toPath();
         } else if (result instanceof String) {
-            return Paths.get((String) result);
+            return Paths.get(expandTilde((String) result)).normalize();
         } else {
             throw new IllegalArgumentException("Invalid value for option " + RestFileSystemOptions.CACHE_LOCATION + ": " + result);
         }
+    }
+
+    /**
+     * Expands a leading {@code ~} to the user's home directory. Unlike a shell,
+     * Java does not resolve {@code ~} in a path string, so a value that reaches
+     * us unexpanded (e.g. from the {@link RestFileSystemOptions#DEFAULT_ENV_PROPERTY}
+     * JSON map) must be handled here. Only a leading {@code ~} (alone or followed
+     * by a separator) is expanded; {@code ~user} and non-leading tildes are left
+     * untouched.
+     *
+     * @param path the raw path string
+     * @return the path with a leading {@code ~} replaced by {@code user.home}
+     */
+    private static String expandTilde(String path) {
+        if (path.equals("~")) {
+            return System.getProperty("user.home");
+        } else if (path.startsWith("~/")) {
+            return System.getProperty("user.home") + path.substring(1);
+        }
+        return path;
     }
 
     /**

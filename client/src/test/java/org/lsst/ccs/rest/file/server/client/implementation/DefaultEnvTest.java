@@ -41,16 +41,37 @@ public class DefaultEnvTest {
     public void defaultEnvTest1() {
         String jsonEnv = " {\"CacheOptions\":\"MEMORY_AND_DISK\",\"CacheLocation\":\"~/ccs/cache/remoteFileSystem\"}";
         System.setProperty("org.lsst.ccs.rest.file.client.defaultEnvironment", jsonEnv);
-        
+
         RestFileSystemOptionsHelper optionsHelper = new RestFileSystemOptionsHelper(null);
-        
+
         assertEquals(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK, optionsHelper.getCacheOptions());
-        assertEquals(optionsHelper.getDiskCacheLocation().toString(),"~/ccs/cache/remoteFileSystem");
-        
-        
-        
+        // The leading ~ is expanded to the user's home directory.
+        assertEquals(System.getProperty("user.home") + "/ccs/cache/remoteFileSystem",
+                optionsHelper.getDiskCacheLocation().toString());
+
+
+
         System.setProperty("org.lsst.ccs.rest.file.client.defaultEnvironment", "");
 
+    }
+
+    /**
+     * A bare {@code ~} expands to the user's home directory; a path with no
+     * leading tilde is left untouched (aside from lexical normalization).
+     */
+    @Test
+    public void tildeExpansion() {
+        String home = System.getProperty("user.home");
+
+        System.setProperty(RestFileSystemOptions.DEFAULT_ENV_PROPERTY, "{\"CacheLocation\":\"~\"}");
+        assertEquals(home, new RestFileSystemOptionsHelper(null).getDiskCacheLocation().toString());
+
+        System.setProperty(RestFileSystemOptions.DEFAULT_ENV_PROPERTY, "{\"CacheLocation\":\"/var/lib/ccs/rest-cache\"}");
+        assertEquals("/var/lib/ccs/rest-cache", new RestFileSystemOptionsHelper(null).getDiskCacheLocation().toString());
+
+        // ../ and ./ are collapsed lexically by normalize().
+        System.setProperty(RestFileSystemOptions.DEFAULT_ENV_PROPERTY, "{\"CacheLocation\":\"/var/lib/ccs/../ccs/rest-cache\"}");
+        assertEquals("/var/lib/ccs/rest-cache", new RestFileSystemOptionsHelper(null).getDiskCacheLocation().toString());
     }
 
     /**
