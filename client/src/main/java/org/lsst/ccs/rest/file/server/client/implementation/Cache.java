@@ -10,9 +10,12 @@ import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -35,14 +38,26 @@ class Cache implements Closeable {
     private CacheAccess<URI, CacheEntry> map;
     private FileLock lock;
     private RestFileSystemOptions.CacheFallback cacheFallback;
+    private final String region;
+    private Path diskCacheLocation;
 
     /**
      * Creates a new cache instance based on the supplied options.
+     * <p>
+     * Each remote file system gets its own JCS region and (for
+     * {@code MEMORY_AND_DISK}) its own disk directory, both derived from a
+     * stable key computed from {@code serverURI}. This keeps the caches of
+     * multiple file systems in the same JVM fully isolated, so they neither
+     * share a region nor collide on the disk lock.
      *
      * @param options user supplied configuration
+     * @param serverURI the resolved full URI of the server (server root plus
+     *                   mount point) used to derive the per-server cache key
      * @throws IOException if the cache cannot be initialised
      */
-    Cache(RestFileSystemOptionsHelper options) throws IOException {
+    Cache(RestFileSystemOptionsHelper options, URI serverURI) throws IOException {
+
+        this.region = regionKey(serverURI);
 
         JCS.setLogSystem(LogManager.LOGSYSTEM_JAVA_UTIL_LOGGING);
 
@@ -56,11 +71,22 @@ class Cache implements Closeable {
             props.load(in);
         }
         if (options.getCacheOptions() == RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK) {
+            String aux = "DC_" + region;
+            Properties diskProps = new Properties();
             try ( InputStream in = Cache.class.getResourceAsStream("disk.ccf")) {
-                props.load(in);
+                diskProps.load(in);
             }
-            Path cacheLocation = options.getDiskCacheLocation();
-            if (cacheLocation != null) {
+            // Substitute the per-server region and auxiliary names into the disk template.
+            for (String name : diskProps.stringPropertyNames()) {
+                String key = name.replace("%REGION%", region).replace("%AUX%", aux);
+                String value = diskProps.getProperty(name).replace("%REGION%", region).replace("%AUX%", aux);
+                props.setProperty(key, value);
+            }
+            Path baseLocation = options.getDiskCacheLocation();
+            if (baseLocation != null) {
+                // Each server caches under its own subdirectory of the configured base
+                // location, so distinct servers never contend for the same disk lock.
+                Path cacheLocation = baseLocation.resolve(region);
                 // Check that we can lock the cache, and if not what to do about it
                 for (int n = 1; n < 100; n++) {
                     Files.createDirectories(cacheLocation);
@@ -89,13 +115,67 @@ class Cache implements Closeable {
                     throw new IOException("Cache already in use and unable to get alternate cache location");
                 }
 
-                props.setProperty("jcs.auxiliary.DC.attributes.DiskPath", cacheLocation.toAbsolutePath().toString());
+                this.diskCacheLocation = cacheLocation;
+                props.setProperty("jcs.auxiliary." + aux + ".attributes.DiskPath", cacheLocation.toAbsolutePath().toString());
             }
         }
         CompositeCacheManager ccm = CompositeCacheManager.getUnconfiguredInstance();
         ccm.configure(props);
-        map = JCS.getInstance("default");        
+        map = JCS.getInstance(region);
         this.cacheFallback = options.getCacheFallback();
+    }
+
+    /**
+     * Derives a stable, filesystem- and JCS-safe key from the server URI. The
+     * key is deterministic across restarts so a server reattaches to its own
+     * on-disk cache. A short hash of the full URI is appended so that URIs that
+     * sanitise to the same token do not collide.
+     *
+     * @param serverURI the resolved full server URI
+     * @return the per-server cache key
+     */
+    private static String regionKey(URI serverURI) {
+        String raw = serverURI.toString();
+        String sanitized = raw.replaceAll("[^A-Za-z0-9_]", "_");
+        if (sanitized.length() > 64) {
+            sanitized = sanitized.substring(sanitized.length() - 64);
+        }
+        return sanitized + "_" + shortHash(raw);
+    }
+
+    private static String shortHash(String value) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 4; i++) {
+                sb.append(String.format("%02x", digest[i]));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException x) {
+            // SHA-256 is guaranteed to be available on every JVM.
+            throw new IllegalStateException(x);
+        }
+    }
+
+    /**
+     * Returns the JCS region name used by this cache. Distinct remote file
+     * systems have distinct regions.
+     *
+     * @return the per-server region name
+     */
+    String getRegion() {
+        return region;
+    }
+
+    /**
+     * Returns the resolved per-server disk cache directory, or {@code null}
+     * when no disk cache is in use.
+     *
+     * @return the disk cache directory, or {@code null}
+     */
+    Path getDiskCacheLocation() {
+        return diskCacheLocation;
     }
 
     void setCacheFallbackOption(RestFileSystemOptions.CacheFallback cacheFallback) {

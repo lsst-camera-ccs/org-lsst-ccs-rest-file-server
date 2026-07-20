@@ -16,7 +16,9 @@ import java.util.stream.Collectors;
 import javax.ws.rs.core.UriBuilder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.Test;
@@ -169,8 +171,13 @@ public class CachingTest {
         }
     }
 
+    /**
+     * Two different servers sharing one base cache location must both start:
+     * each gets its own per-server subdirectory (and JCS region), so there is no
+     * lock collision between distinct servers.
+     */
     @Test
-    public void cacheLockTest() throws URISyntaxException, IOException {
+    public void multiServerSharedBaseTest() throws URISyntaxException, IOException {
         final Path tempDir = Files.createTempDirectory("rfs");
 
         TestServer testServer = new TestServer();
@@ -182,29 +189,81 @@ public class CachingTest {
                     .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
                     .set(RestFileSystemOptions.CacheFallback.OFFLINE)
                     .build();
-            try (FileSystem restfs = FileSystems.newFileSystem(restRootURI, env)) {
+            URI restRootURI2 = UriBuilder.fromUri(testServer2.getServerURI()).scheme("ccs").build();
+            Map<String, Object> env2 = RestFileSystemOptions.builder()
+                    .cacheLocation(tempDir)
+                    .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
+                    .set(RestFileSystemOptions.CacheFallback.OFFLINE)
+                    .build();
+            try (FileSystem restfs = FileSystems.newFileSystem(restRootURI, env);
+                    FileSystem restfs2 = FileSystems.newFileSystem(restRootURI2, env2)) {
+                // Both file systems must have started, with distinct regions and disk dirs.
+                RestFileSystem client = (RestFileSystem) restfs;
+                RestFileSystem client2 = (RestFileSystem) restfs2;
+                Cache cache = client.getCache();
+                Cache cache2 = client2.getCache();
+                assertNotEquals(cache.getRegion(), cache2.getRegion());
+                assertNotEquals(cache.getDiskCacheLocation(), cache2.getDiskCacheLocation());
+                assertTrue(Files.isDirectory(cache.getDiskCacheLocation()));
+                assertTrue(Files.isDirectory(cache2.getDiskCacheLocation()));
 
-                URI restRootURI2 = UriBuilder.fromUri(testServer2.getServerURI()).scheme("ccs").build();
-                Map<String, Object> env2 = RestFileSystemOptions.builder()
-                        .cacheLocation(tempDir)
-                        .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
-                        .set(RestFileSystemOptions.CacheFallback.OFFLINE)
-                        .build();
-                try {
-                    FileSystems.newFileSystem(restRootURI2, env2);
-                    fail();
-                } catch (IOException x) {
-                    assertTrue(x.getMessage().contains("in use"));
+                // Write and read a file through the first server, populating its cache.
+                final String content = "cached on server one";
+                final String fileName = "isolated.txt";
+                Path pathInServer1 = restfs.getPath(fileName);
+                try (BufferedWriter writer = Files.newBufferedWriter(pathInServer1)) {
+                    writer.append(content);
                 }
+                listAndRead(pathInServer1, content, 1);
 
-                env2.put(RestFileSystemOptions.ALLOW_ALTERNATE_CACHE_LOCATION, true);
-                try (FileSystem restfs2 = FileSystems.newFileSystem(restRootURI2, env2)) {
-                    // We should get here
-                }
+                // The entry lives in server one's cache but not in server two's.
+                URI fileUri = new URI(client.getURI("rest/download/" + fileName).toString().replace("ccs:", "http:"));
+                assertNotNull(cache.getEntry(fileUri));
+                assertNull(cache2.getEntry(fileUri));
             }
         } finally {
             testServer.shutdown();
             testServer2.shutdown();
+        }
+    }
+
+    /**
+     * Genuine contention on a single server's cache directory must still be
+     * rejected: a second cache for the same server URI and base location cannot
+     * take the disk lock, and {@code ALLOW_ALTERNATE_CACHE_LOCATION} lets it fall
+     * back to a sibling directory.
+     */
+    @Test
+    public void cacheLockTest() throws URISyntaxException, IOException {
+        final Path tempDir = Files.createTempDirectory("rfs");
+        final URI serverURI = new URI("ccs://localhost:9999/RestFileServer/");
+
+        Map<String, Object> env = RestFileSystemOptions.builder()
+                .cacheLocation(tempDir)
+                .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
+                .set(RestFileSystemOptions.CacheFallback.OFFLINE)
+                .build();
+        Cache cache = new Cache(new RestFileSystemOptionsHelper(env), serverURI);
+        try {
+            try {
+                new Cache(new RestFileSystemOptionsHelper(env), serverURI);
+                fail();
+            } catch (IOException x) {
+                assertTrue(x.getMessage().contains("in use"));
+            }
+
+            Map<String, Object> env2 = RestFileSystemOptions.builder()
+                    .cacheLocation(tempDir)
+                    .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
+                    .set(RestFileSystemOptions.CacheFallback.OFFLINE)
+                    .ignoreLockedCache(true)
+                    .build();
+            Cache cache2 = new Cache(new RestFileSystemOptionsHelper(env2), serverURI);
+            // The alternate location must differ from the primary one.
+            assertNotEquals(cache.getDiskCacheLocation(), cache2.getDiskCacheLocation());
+            cache2.close();
+        } finally {
+            cache.close();
         }
     }
 

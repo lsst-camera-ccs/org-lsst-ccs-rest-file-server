@@ -66,7 +66,7 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
         Client client = ClientBuilder.newBuilder().readTimeout(3, TimeUnit.SECONDS).connectTimeout(3, TimeUnit.SECONDS).build();
         final URI restURI = computeRestURI(client);
         if (options.getCacheOptions() != RestFileSystemOptions.CacheOptions.NONE) {
-            cache = new Cache(options);
+            cache = new Cache(options, getFullURI());
             client.register(new CacheRequestFilter(cache, offline || options.getCacheFallback() == RestFileSystemOptions.CacheFallback.ALWAYS));
             client.register(new CacheResponseFilter(cache));
         } else {
