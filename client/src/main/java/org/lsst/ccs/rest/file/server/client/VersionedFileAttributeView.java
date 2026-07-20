@@ -43,4 +43,13 @@ public interface VersionedFileAttributeView extends FileAttributeView {
      * @throws IOException if the hidden flag cannot be changed
      */
     void setHidden(int version, boolean hidden) throws IOException;
+
+    /**
+     * Marks the file as a whole sensitive or not. This is a file-level
+     * property and is independent of any particular version.
+     *
+     * @param sensitive {@code true} to mark the file sensitive
+     * @throws IOException if the sensitive flag cannot be changed
+     */
+    void setSensitive(boolean sensitive) throws IOException;
 }

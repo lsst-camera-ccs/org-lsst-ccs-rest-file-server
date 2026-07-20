@@ -14,6 +14,7 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.ClientRequestContext;
 import javax.ws.rs.client.ClientRequestFilter;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Configuration;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -22,12 +23,15 @@ import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.lsst.ccs.web.rest.file.server.data.Constants.PROTOCOL_VERSION_HEADER;
+import org.lsst.ccs.web.rest.file.server.data.ServerInfo;
 import org.lsst.ccs.web.rest.file.server.data.VersionInfo;
 import org.lsst.ccs.web.rest.file.server.data.VersionInfoV2;
+import org.lsst.ccs.web.rest.file.server.data.VersionOptions;
 
 /**
  *
@@ -96,6 +100,56 @@ public class VersionedFileServerTest {
         }
     }
     
+    @Test
+    public void testSensitive() throws IOException {
+        final Client client = ClientBuilder.newClient();
+        try {
+            final String testFile = "sensitive.file";
+            upload(testFile, "Test content");
+
+            // Defaults to not sensitive.
+            assertFalse(info2(client, testFile).isSensitive());
+
+            // Mark sensitive via setOptions; the version field is irrelevant for a whole-file property.
+            VersionOptions options = new VersionOptions.Builder(0).setSensitive(true).build();
+            URI setOptionsURI = testServer.getServerURI().resolve("rest/version/setOptions/" + testFile);
+            Response response = client.target(setOptionsURI).request(MediaType.APPLICATION_JSON)
+                    .header(PROTOCOL_VERSION_HEADER, "2")
+                    .put(Entity.entity(options, MediaType.APPLICATION_JSON));
+            assertEquals(200, response.getStatus());
+            // setOptions returns the refreshed info.
+            assertTrue(response.readEntity(VersionInfoV2.class).isSensitive());
+
+            // And it is reflected on a fresh info request.
+            assertTrue(info2(client, testFile).isSensitive());
+
+            // Clearing it works too.
+            VersionOptions clear = new VersionOptions.Builder(0).setSensitive(false).build();
+            client.target(setOptionsURI).request(MediaType.APPLICATION_JSON)
+                    .header(PROTOCOL_VERSION_HEADER, "2")
+                    .put(Entity.entity(clear, MediaType.APPLICATION_JSON));
+            assertFalse(info2(client, testFile).isSensitive());
+
+            delete(client, testFile);
+        } finally {
+            client.close();
+        }
+    }
+
+    @Test
+    public void testServerAdvertisesSensitiveCapability() {
+        final Client client = ClientBuilder.newClient();
+        try {
+            URI infoURI = testServer.getServerURI().resolve("rest/serverInfo");
+            Response response = client.target(infoURI).request(MediaType.APPLICATION_JSON).get();
+            assertEquals(200, response.getStatus());
+            ServerInfo serverInfo = response.readEntity(ServerInfo.class);
+            assertTrue(serverInfo.getCapabilities().contains("sensitive"));
+        } finally {
+            client.close();
+        }
+    }
+
     private void download(final String testFile, final String content) throws IOException {
         // Get the file back
         URI downloadURI = testServer.getServerURI().resolve("rest/version/download/" + testFile);

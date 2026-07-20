@@ -108,6 +108,23 @@ public class VersionedFileTest {
         }
     }
 
+    @Test void testSensitive() throws IOException {
+        String content = "Just Testing";
+        Path filePath = tempDir.resolve("test3.file");
+        VersionedFile vf = VersionedFile.create(filePath, content.getBytes());
+        assertFalse(vf.isSensitive());
+        vf.addVersion(content.getBytes(), false);
+        // Sensitive is a whole-file property, independent of versions.
+        vf.setSensitive(true);
+        assertTrue(vf.isSensitive());
+        // Re-open from disk to confirm the flag was persisted to version-meta.properties.
+        VersionedFile reopened = new VersionedFile(filePath);
+        assertTrue(reopened.isSensitive());
+        vf.setSensitive(false);
+        assertFalse(vf.isSensitive());
+        assertFalse(new VersionedFile(filePath).isSensitive());
+    }
+
     @Test
     public void testConvert() throws IOException {
         String content = "Unversioned Content";

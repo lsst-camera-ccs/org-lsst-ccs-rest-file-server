@@ -38,6 +38,7 @@ public class VersionedFile {
     private static final String META_FILE_NAME = "version-meta.properties";
     private static final String DEFAULT_HISTORY_FILE_NAME = "default-history.json";
     private static final String HIDDEN_VERSIONS_PROPERTY = "hidden-versions";
+    private static final String SENSITIVE_PROPERTY = "sensitive";
     private static final String COMMENT_PROPERTY = "comment.";
     private static final String CREATOR_PROPERTY = "creator.";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -224,6 +225,28 @@ public class VersionedFile {
         }
     }
     
+    /**
+     * Indicates whether this versioned file as a whole is marked sensitive.
+     * This is a property of the file, not of any individual version.
+     *
+     * @return {@code true} if the file is marked sensitive
+     */
+    boolean isSensitive() {
+        return Boolean.parseBoolean(meta.getProperty(SENSITIVE_PROPERTY, "false"));
+    }
+
+    /**
+     * Marks this versioned file as sensitive or not. This applies to the file
+     * as a whole rather than to any individual version.
+     *
+     * @param sensitive {@code true} to mark the file sensitive
+     * @throws IOException if the metadata file cannot be updated
+     */
+    void setSensitive(boolean sensitive) throws IOException {
+        meta.setProperty(SENSITIVE_PROPERTY, String.valueOf(sensitive));
+        updateMetaFile(path, meta);
+    }
+
     /**
      * Retrieves the stored comment for a version.
      *

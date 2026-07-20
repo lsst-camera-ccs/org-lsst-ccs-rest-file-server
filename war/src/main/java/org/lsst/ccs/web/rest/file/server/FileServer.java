@@ -56,7 +56,8 @@ public class FileServer {
             "hideFiles",
             "versionComments",
             "versionCreator",
-            "defaultHistory"
+            "defaultHistory",
+            "sensitive"
     );
 
     @Inject
@@ -133,6 +134,13 @@ public class FileServer {
             for (java.nio.file.Path child : listFiles) {
                 String childName = child.getFileName().toString();
                 if (childName.equals(DirectoryMetadata.HIDDEN_FILE_NAME)) {
+                    continue;
+                }
+                // Always exclude files the operating system considers hidden
+                // (e.g. dot-files on Unix). This is distinct from the
+                // application's own hidden-entry mechanism tracked in
+                // DirectoryMetadata / the .hidden sidecar.
+                if (Files.isHidden(child)) {
                     continue;
                 }
                 if (!showHidden && hiddenNames.contains(childName)) {

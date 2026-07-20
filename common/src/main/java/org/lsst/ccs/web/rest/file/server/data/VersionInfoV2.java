@@ -25,17 +25,19 @@ public class VersionInfoV2 implements Serializable {
     private final int latestVersion;
     private final List<VersionInfoV2.Version> versions;
     private final List<DefaultChangeRecord> defaultHistory;
+    private final boolean sensitive;
 
     @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
-    public VersionInfoV2(@JsonProperty("default") int defaultVersion, @JsonProperty("latest") int latestVersion, @JsonProperty("versions") List<Version> versions, @JsonProperty("defaultHistory") List<DefaultChangeRecord> defaultHistory) {
+    public VersionInfoV2(@JsonProperty("default") int defaultVersion, @JsonProperty("latest") int latestVersion, @JsonProperty("versions") List<Version> versions, @JsonProperty("defaultHistory") List<DefaultChangeRecord> defaultHistory, @JsonProperty("sensitive") boolean sensitive) {
         this.defaultVersion = defaultVersion;
         this.latestVersion = latestVersion;
         this.versions = versions;
         this.defaultHistory = defaultHistory == null ? Collections.emptyList() : defaultHistory;
+        this.sensitive = sensitive;
     }
 
     public VersionInfoV2(int defaultVersion, int latestVersion, List<Version> versions) {
-        this(defaultVersion, latestVersion, versions, Collections.emptyList());
+        this(defaultVersion, latestVersion, versions, Collections.emptyList(), false);
     }
 
     /**
@@ -67,6 +69,15 @@ public class VersionInfoV2 implements Serializable {
 
     public List<DefaultChangeRecord> getDefaultHistory() {
         return defaultHistory;
+    }
+
+    /**
+     * Indicates whether the versioned file as a whole is marked sensitive.
+     *
+     * @return {@code true} if the file is sensitive
+     */
+    public boolean isSensitive() {
+        return sensitive;
     }
 
     /**

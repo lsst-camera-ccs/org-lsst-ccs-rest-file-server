@@ -59,6 +59,33 @@ public class VersionedFileTest {
         cacheTest(9995, RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE);
     }
 
+    @Test
+    public void sensitiveRoundTripTest() throws URISyntaxException, IOException {
+        TestServer testServer = new TestServer(9993);
+        URI restRootURI = UriBuilder.fromUri(testServer.getServerURI()).scheme("ccs").build();
+        final String content = "Some Content";
+        final String fileName = "sensitiveVersion.txt";
+        try (FileSystem restfs = FileSystems.newFileSystem(restRootURI, RestFileSystemOptions.builder().build())) {
+            Path pathInRestServer = restfs.getPath(fileName);
+            try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer, VersionOpenOption.of(1))) {
+                writer.append(content);
+            }
+            assertTrue(Files.exists(pathInRestServer));
+
+            VersionedFileAttributes attributes = Files.readAttributes(pathInRestServer, VersionedFileAttributes.class);
+            assertFalse(attributes.isSensitive());
+
+            // Mark sensitive through the attribute view (file-level, no version argument).
+            ((RestFileSystem) restfs).getClient()
+                    .getVersionedAttributeView((RestPath) pathInRestServer, null)
+                    .setSensitive(true);
+
+            attributes = Files.readAttributes(pathInRestServer, VersionedFileAttributes.class);
+            assertTrue(attributes.isSensitive());
+        }
+        testServer.shutdown();
+    }
+
     public void cacheTest(int port, RestFileSystemOptions.CacheFallback cacheMode) throws URISyntaxException, IOException, InterruptedException {
         TestServer testServer = new TestServer(port);
         URI restRootURI = UriBuilder.fromUri(testServer.getServerURI()).scheme("ccs").build();

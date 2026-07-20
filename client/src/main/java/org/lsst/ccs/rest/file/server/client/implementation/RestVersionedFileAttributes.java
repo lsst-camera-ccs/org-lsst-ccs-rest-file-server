@@ -60,4 +60,10 @@ class RestVersionedFileAttributes extends RestFileAttributes implements Versione
         VersionInfoV2.Version versionAttributes = info.getVersions().get(version - 1);
         return versionAttributes.getComment();
     }
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isSensitive() {
+        return info.isSensitive();
+    }
 }
