@@ -36,18 +36,24 @@ cleanup (step 6), not a prerequisite.
 
 The global config arrives via the `DEFAULT_ENV_PROPERTY` system property
 (`org.lsst.ccs.rest.file.client.defaultEnvironment`) — a JSON map with `CacheOptions`,
-`CacheLocation`, and optionally `CacheFallbackLocation`:
+`CacheLocation`, and `CacheFallbackLocation`. It must be set **at JVM startup** (resolved once, before
+the first mount), not from app code that runs after a file system exists.
+
+**Preferred: the CCS bootstrap** sets it while launching the JVM, using an `<app|default>` token that
+resolves to the agent name so role agents reattach across restarts. The shipped bootstrap line is:
 
 ```
--Dorg.lsst.ccs.rest.file.client.defaultEnvironment='{"CacheOptions":"MEMORY_AND_DISK","CacheLocation":"~/ccs/cache/focal-plane"}'
+system.property.org.lsst.ccs.rest.file.client.defaultEnvironment={"CacheOptions":"MEMORY_AND_DISK","CacheFallbackLocation":true,"CacheLocation":"~/ccs/cache/<app|default>"}
 ```
 
-It must be set **at JVM startup** (resolved once, before the first mount) — not from app code that
-runs after a file system exists. **Preferred: the CCS bootstrap** sets it while launching the JVM,
-injecting a unique per-host location (agent name) so role agents reattach across restarts; it already
-owns JVM launch and knows the agent identity. App/launch-file `-D` works for non-agent JVMs, but then
-the operator owns location uniqueness. Setting neither falls to `~/ccs/cache/default` (shared,
-non-reattaching). See [ADR 0003 §2](../decisions/0003-shared-per-jvm-cache.md) for details.
+App/launch-file `-D` works for non-agent JVMs, but then the operator owns location uniqueness. Setting
+neither falls to `~/ccs/cache/default`. See [ADR 0003 §2](../decisions/0003-shared-per-jvm-cache.md)
+and [bootstrap ADR 0001](../../../org-lsst-ccs-bootstrap/docs/decisions/0001-substitution-tokens-in-java-opts.md).
+
+**No dependency on the bootstrap for this work.** The client only reads the property and does not
+care how it was produced; there is no build dependency, and the client tests set the config directly
+(backdoor / env). The two repos are coupled only at deployment (roll out together), so the bootstrap
+change does **not** block or alter the implementation steps below.
 
 ## Steps
 

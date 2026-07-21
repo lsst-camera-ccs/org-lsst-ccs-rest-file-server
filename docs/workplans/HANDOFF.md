@@ -14,6 +14,11 @@ stays per-mount. Now recorded in [ADR 0003](../decisions/0003-shared-per-jvm-cac
 amends [0002](../decisions/0002-option-resolution-cascade.md)). No 0003 code written yet — the branch
 still contains the 0001 isolation code that 0003 unwinds.
 
+The **bootstrap half is done**: the `<app|default>` token + `getJavaOpts` resolution and the shipped
+`defaultEnvironment` line are implemented, tested, and in PR
+(`org-lsst-ccs-bootstrap` PR #20, branch `LSSTCCS-3029`). It's runtime-coupled only — no build
+dependency, does not block this client work (see the workplan's deployment section).
+
 ## Next up
 
 **Build ADR 0003 per the workplan:**

@@ -47,25 +47,31 @@ and applied to the built-in default too.
 
 **How the properties are set.** The global config arrives through the `DEFAULT_ENV_PROPERTY` system
 property (`org.lsst.ccs.rest.file.client.defaultEnvironment`), a JSON map carrying `CacheOptions`,
-`CacheLocation`, and (if needed) `CacheFallbackLocation`, e.g.
-
-```
--Dorg.lsst.ccs.rest.file.client.defaultEnvironment='{"CacheOptions":"MEMORY_AND_DISK","CacheLocation":"~/ccs/cache/focal-plane"}'
-```
-
-Because the location is resolved **once, before the first `ccs://` file system is created**, this
-property must be in place at JVM startup — it cannot be set from application code that runs after a
-mount already exists. Two ways to set it:
+`CacheLocation`, and `CacheFallbackLocation`. Because the location is resolved **once, before the
+first `ccs://` file system is created**, the property must be in place at JVM startup — it cannot be
+set from application code that runs after a mount already exists. Two ways to set it:
 
 - **Bootstrap (preferred).** The CCS bootstrap sets the property as it launches the JVM, injecting a
-  **unique per-host location** (e.g. the agent name) so a role agent reattaches to its own cache
-  across restarts. This is the intended mechanism — the bootstrap already knows the agent identity
-  and owns JVM launch.
-- **App/launch files.** A `-D` in the app's launch configuration works for one-off or non-agent JVMs,
-  but the operator is then responsible for location uniqueness.
+  **unique per-agent location** so a role agent reattaches to its own cache across restarts. It does
+  this with a `<app|default>` substitution token, resolved to the agent name at launch (see
+  [bootstrap ADR 0001](../../../org-lsst-ccs-bootstrap/docs/decisions/0001-substitution-tokens-in-java-opts.md)).
+  The shipped bootstrap `system.properties` line is:
+
+  ```
+  system.property.org.lsst.ccs.rest.file.client.defaultEnvironment={"CacheOptions":"MEMORY_AND_DISK","CacheFallbackLocation":true,"CacheLocation":"~/ccs/cache/<app|default>"}
+  ```
+
+- **App/launch files.** A literal `-D` in the app's launch configuration works for one-off or
+  non-agent JVMs, but the operator is then responsible for location uniqueness.
 
 A JVM that sets neither falls to the built-in default `~/ccs/cache/default` (shared, non-reattaching —
 fine for anonymous shells).
+
+**Delivery is decoupled from this client.** The client only reads `DEFAULT_ENV_PROPERTY`; it does not
+care whether the value came from a token-resolving bootstrap or a literal `-D`, and there is no build
+dependency on the bootstrap. The two changes are coupled only at *deployment* — a new bootstrap and a
+new client are rolled out together so production JVMs get per-agent locations — which is a deployment
+coordination note, not a constraint on the client implementation or its tests.
 
 ### 3. Lock guards cross-JVM only; same-JVM mounts share
 
