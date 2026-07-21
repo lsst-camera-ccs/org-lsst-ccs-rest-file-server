@@ -144,7 +144,7 @@ Document the JVM-scoped-`FileLock` asymmetry and the release-on-acquiring-mount 
 ### 6. Toolkit — required coordinated rebuild
 
 Because the per-FS builder methods are **removed**, the toolkit must rebuild against the new client:
-bump `org-lsst-ccs-rest-file-server-client` to 1.1.10-SNAPSHOT and drop
+bump `org-lsst-ccs-rest-file-server-client` to 1.1.11 and drop
 `RemoteFileServer.createFileSystem`'s `.cacheLocation(...)` / `.ignoreLockedCache(true)` calls (plus
 the now-dead per-service `cacheDir`). Done in the toolkit's LSSTCCS-3029 PR. Version-coupled at
 deployment (roll out with the new client + bootstrap), not a build dependency of this repo.

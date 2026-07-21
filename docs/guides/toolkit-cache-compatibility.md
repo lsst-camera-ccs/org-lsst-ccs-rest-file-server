@@ -23,7 +23,7 @@ the per-file-system `CacheLocation` / `CacheFallbackLocation` values. The per-FS
 `cacheLocation()` and `ignoreLockedCache()` are **removed** from the client API, so the factory's
 `.cacheLocation(...)` / `.ignoreLockedCache(true)` calls no longer compile — the toolkit must rebuild
 against the new client and drop them. This is done in the toolkit's LSSTCCS-3029 PR (bump client to
-1.1.10-SNAPSHOT + remove the calls); it is a required coordinated change, not optional cleanup.
+1.1.11 + remove the calls); it is a required coordinated change, not optional cleanup.
 
 `CacheOptions` and the `CacheFallback` policy are still per-mount, so the three services keep their
 distinct caching strategies (e.g. dictionaries `WHEN_POSSIBLE`, config/persistence `OFFLINE`) — that

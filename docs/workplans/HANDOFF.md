@@ -16,7 +16,7 @@ methods removed and replaced by a set-once `setCacheLocation(Path)` that also ba
   refresh are not yet committed. No PR opened yet.
 - **bootstrap:** `<app|default>` token + shipped `defaultEnvironment` line — committed, pushed,
   PR #20.
-- **toolkit:** client bumped to 1.1.10-SNAPSHOT + `RemoteFileServer` cleanup — committed, pushed,
+- **toolkit:** client bumped to 1.1.11 + `RemoteFileServer` cleanup — committed, pushed,
   PR #316.
 
 The three are coupled only at deployment (no build dependency on each other's SNAPSHOTs beyond the
