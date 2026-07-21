@@ -45,8 +45,27 @@ The built-in default location is `~/ccs/cache/default`. The resolver expands a l
 symlink resolution or env-var expansion — the same scope as 0002, relocated to the global path
 and applied to the built-in default too.
 
-The bootstrap makes a JVM reattach to its own cache by setting a unique per-host location (e.g.
-the agent name) in the `DEFAULT_ENV_PROPERTY` JSON.
+**How the properties are set.** The global config arrives through the `DEFAULT_ENV_PROPERTY` system
+property (`org.lsst.ccs.rest.file.client.defaultEnvironment`), a JSON map carrying `CacheOptions`,
+`CacheLocation`, and (if needed) `CacheFallbackLocation`, e.g.
+
+```
+-Dorg.lsst.ccs.rest.file.client.defaultEnvironment='{"CacheOptions":"MEMORY_AND_DISK","CacheLocation":"~/ccs/cache/focal-plane"}'
+```
+
+Because the location is resolved **once, before the first `ccs://` file system is created**, this
+property must be in place at JVM startup — it cannot be set from application code that runs after a
+mount already exists. Two ways to set it:
+
+- **Bootstrap (preferred).** The CCS bootstrap sets the property as it launches the JVM, injecting a
+  **unique per-host location** (e.g. the agent name) so a role agent reattaches to its own cache
+  across restarts. This is the intended mechanism — the bootstrap already knows the agent identity
+  and owns JVM launch.
+- **App/launch files.** A `-D` in the app's launch configuration works for one-off or non-agent JVMs,
+  but the operator is then responsible for location uniqueness.
+
+A JVM that sets neither falls to the built-in default `~/ccs/cache/default` (shared, non-reattaching —
+fine for anonymous shells).
 
 ### 3. Lock guards cross-JVM only; same-JVM mounts share
 

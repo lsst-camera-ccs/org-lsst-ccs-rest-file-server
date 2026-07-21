@@ -32,6 +32,23 @@ cleanup (step 6), not a prerequisite.
   global spill flag is set) or fail "in use". Flag defaults `false`.
 - **Policy-free `Cache`.** Expiry decision moves to the per-mount `CacheRequestFilter`.
 
+## How the global config is delivered (deployment)
+
+The global config arrives via the `DEFAULT_ENV_PROPERTY` system property
+(`org.lsst.ccs.rest.file.client.defaultEnvironment`) — a JSON map with `CacheOptions`,
+`CacheLocation`, and optionally `CacheFallbackLocation`:
+
+```
+-Dorg.lsst.ccs.rest.file.client.defaultEnvironment='{"CacheOptions":"MEMORY_AND_DISK","CacheLocation":"~/ccs/cache/focal-plane"}'
+```
+
+It must be set **at JVM startup** (resolved once, before the first mount) — not from app code that
+runs after a file system exists. **Preferred: the CCS bootstrap** sets it while launching the JVM,
+injecting a unique per-host location (agent name) so role agents reattach across restarts; it already
+owns JVM launch and knows the agent identity. App/launch-file `-D` works for non-agent JVMs, but then
+the operator owns location uniqueness. Setting neither falls to `~/ccs/cache/default` (shared,
+non-reattaching). See [ADR 0003 §2](../decisions/0003-shared-per-jvm-cache.md) for details.
+
 ## Steps
 
 ### 1. Restore `.ccf` templates (revert 0001)
