@@ -1,53 +1,56 @@
 # Toolkit remote-file-server cache behavior
 
 How the toolkit's three remote file servers (configuration, persistence, dictionaries) behave
-with the LSSTCCS-3029 client changes, and whether the `DEFAULT_ENV_PROPERTY` system property
-affects them.
+with the LSSTCCS-3029 client changes, and how the `DEFAULT_ENV_PROPERTY` system property affects
+them.
 
-> **Currency:** describes the branch *as built* (ADR 0001 + 0002). [ADR 0003](../decisions/0003-shared-per-jvm-cache.md)
-> (proposed) reverses the per-server isolation in "Effects on upgrade" below and adopts the
-> toolkit change in "Takeaway". Revisit when 0003 lands.
+> **Currency:** describes the branch as built for [ADR 0003](../decisions/0003-shared-per-jvm-cache.md)
+> (one shared cache per JVM). Supersedes the earlier ADR 0001 description.
 
 ## Setup
 
 All three services create their `ccs://` file system through one factory,
-`RemoteFileServer.createFileSystem`, which builds an **explicit** env map via
-`RestFileSystemOptions.builder()` — always setting `MountPoint`, `CacheLocation`
-(`~/ccs/cache/<name>` as a `File`), `CacheOptions.MEMORY_AND_DISK`, `ignoreLockedCache(true)`,
-a `CacheFallback`, and `SSLOptions`. Mount points: `config`, `persistence`, and a
-caller-supplied one for dictionaries (which also sets `cacheFallback=WHEN_POSSIBLE`).
+`RemoteFileServer.createFileSystem`, which builds an env map via `RestFileSystemOptions.builder()` —
+setting `MountPoint`, `CacheLocation` (`~/ccs/cache/<name>` as a `File`), `CacheOptions.MEMORY_AND_DISK`,
+`ignoreLockedCache(true)`, a `CacheFallback`, and `SSLOptions`. Mount points: `config`, `persistence`,
+and a caller-supplied one for dictionaries (which sets `cacheFallback=WHEN_POSSIBLE`).
 
-Scenario checked:
-`-Dorg.lsst.ccs.rest.file.client.defaultEnvironment='{"CacheOptions":"MEMORY_AND_DISK","CacheLocation":"~/ccs/cache/remoteFileSystem"}'`.
+## The toolkit must rebuild against the new client
 
-## The property does not change these three services
+Under 0003 the cache **location** and the **spill flag** are JVM-global: the client resolves them
+once from `DEFAULT_ENV_PROPERTY` (or the built-in default `~/ccs/cache/default`) and no longer reads
+the per-file-system `CacheLocation` / `CacheFallbackLocation` values. The per-FS builder methods
+`cacheLocation()` and `ignoreLockedCache()` are **removed** from the client API, so the factory's
+`.cacheLocation(...)` / `.ignoreLockedCache(true)` calls no longer compile — the toolkit must rebuild
+against the new client and drop them. This is done in the toolkit's LSSTCCS-3029 PR (bump client to
+1.1.10-SNAPSHOT + remove the calls); it is a required coordinated change, not optional cleanup.
 
-The cascade (ADR 0002) resolves each key with explicit `env` at highest precedence. The factory
-sets `CacheOptions` and `CacheLocation` explicitly, so the property's values for those keys are
-overridden — it only reaches keys the builder leaves unset, and it leaves neither unset. `~`
-expansion also doesn't apply: `CacheLocation` is passed as a `File`, which skips the string
-branch of `getDiskCacheLocation()`. So the three services keep caching under
-`~/ccs/cache/<name>/...`, and the property is safe to set.
+`CacheOptions` and the `CacheFallback` policy are still per-mount, so the three services keep their
+distinct caching strategies (e.g. dictionaries `WHEN_POSSIBLE`, config/persistence `OFFLINE`) — that
+half is unaffected.
 
-## Effects on upgrade (from the client changes, not the property)
+## Effects on upgrade
 
-1. **Per-server subdirectory.** `CacheLocation` is now a base dir, so the disk cache moves to
-   `~/ccs/cache/<name>/<key>/`. Existing caches at the old path are orphaned — a one-time cold
-   cache.
-2. **Region isolation.** Each mount gets its own JCS region instead of the shared `default`.
-   The three services use distinct mount points, so they become genuinely isolated.
+1. **One shared cache per JVM.** All three services share a single JCS `default` region and one disk
+   store at the resolved global location. They no longer cache under per-service `~/ccs/cache/<name>`
+   subdirectories; existing caches at the old paths are orphaned — a one-time cold cache.
+2. **Location comes from the property, not the factory.** With the property unset, all three land on
+   `~/ccs/cache/default`. To give a JVM its own reattaching cache, set the property (the CCS bootstrap
+   does this with an `<app|default>` token — see
+   [bootstrap ADR 0001](../../../org-lsst-ccs-bootstrap/docs/decisions/0001-substitution-tokens-in-java-opts.md)).
+3. **Shared `MaxObjects` budget.** The three services share one region's budget (raised to 2500);
+   they can evict each other. Eviction is cheap — an evicted entry is re-fetched.
 
 ## Verification
 
-Source-level analysis of the toolkit at `/home/turri/Code/LSST/ccs/org-lsst-ccs-toolkit`
-against the branch — not a runtime launch. No public client API changed, so the toolkit
-compiles unchanged. The toolkit depends on client **1.1.8** (`core/configuration/pom.xml`);
-these changes are on **1.1.10-SNAPSHOT**, so the behavior above applies once it upgrades. No
-runtime cross-build done.
+Source-level analysis of the toolkit at `/home/turri/Code/LSST/ccs/org-lsst-ccs-toolkit` against the
+branch — not a runtime launch. The per-FS builder methods `cacheLocation()`/`ignoreLockedCache()` are
+**removed**, so the toolkit does not compile against the new client until its LSSTCCS-3029 PR lands
+(client bumped to **1.1.10-SNAPSHOT**, calls removed). The toolkit previously depended on client
+**1.1.8**.
 
 ## Takeaway
 
-The property is safe to set; it does not change config/persistence/dictionary caching. Making
-those services honor a central cache location requires changing
-`RemoteFileServer.createFileSystem` to stop hardcoding `CacheLocation` — which is exactly what
-ADR 0003 proposes.
+The property is safe to set and now *does* drive the toolkit services' cache location (they share one
+per-JVM cache). Adopting the new client requires the toolkit to rebuild and drop the removed
+`.cacheLocation()` / `.ignoreLockedCache()` calls — done in its LSSTCCS-3029 PR.

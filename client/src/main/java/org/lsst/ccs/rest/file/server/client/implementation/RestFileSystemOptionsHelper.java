@@ -39,7 +39,7 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
      */
     RestFileSystemOptionsHelper(Map<String, ?> env) {
         Map<String, Object> merged = new HashMap<>();
-        Map<String, ?> propertyDefaults = createDefaultOptions();
+        Map<String, ?> propertyDefaults = parseDefaultEnvProperty();
         if (propertyDefaults != null) {
             merged.putAll(propertyDefaults);
         }
@@ -100,46 +100,132 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
     }
 
     /**
-     * Specifies whether alternate cache locations are permitted if the primary
-     * location is unavailable.
+     * The on-disk cache location and the spill flag ({@code CacheFallbackLocation})
+     * describe the single per-JVM cache (see ADR 0003), so they are resolved
+     * globally and once, not per file system. See
+     * {@link #getGlobalCacheLocation()} and {@link #allowAlternateCacheLocation()}.
+     * The per-file-system {@code env} is deliberately not consulted for these two
+     * keys, which is what makes a per-FS {@code cacheLocation()} /
+     * {@code ignoreLockedCache()} inert.
+     */
+
+    /** Built-in default cache location when nothing else supplies one. */
+    private static final String DEFAULT_CACHE_LOCATION = "~/ccs/cache/default";
+
+    // The global cache config is resolved once (before the first file system)
+    // and memoized. A test backdoor can seed/reset it; see
+    // setGlobalCacheConfigForTest / resetGlobalCacheConfigForTest.
+    private static Path globalCacheLocation;
+    private static boolean globalAllowAlternate;
+    private static boolean globalResolved = false;
+
+    // Programmatic location override (e.g. the CLI's --cacheDir), allowed only
+    // before the cache is configured. Takes precedence over the property; the
+    // spill flag still resolves normally.
+    private static Path cacheLocationOverride;
+
+    /**
+     * Resolves the JVM-global cache location, once. Resolution order, highest
+     * precedence first: the test backdoor, the {@link RestFileSystemOptions#DEFAULT_ENV_PROPERTY}
+     * JSON map, then the built-in default {@value #DEFAULT_CACHE_LOCATION}. A
+     * leading {@code ~} is expanded and the path normalized.
+     *
+     * @return the resolved global cache location, never {@code null}
+     */
+    static synchronized Path getGlobalCacheLocation() {
+        resolveGlobalCacheConfig();
+        return globalCacheLocation;
+    }
+
+    /**
+     * Indicates whether the cache may spill to an alternate location
+     * ({@code <name>-N}) when another process holds the lock on the resolved
+     * location. JVM-global; resolved from the {@code CacheFallbackLocation} key
+     * of the {@link RestFileSystemOptions#DEFAULT_ENV_PROPERTY} map, default
+     * {@code false}.
      *
      * @return {@code true} if alternate locations are allowed
      */
-    boolean allowAlternateCacheLoction() {
-        return getOption(RestFileSystemOptions.ALLOW_ALTERNATE_CACHE_LOCATION, Boolean.class, Boolean.FALSE);
+    static synchronized boolean allowAlternateCacheLocation() {
+        resolveGlobalCacheConfig();
+        return globalAllowAlternate;
+    }
+
+    private static void resolveGlobalCacheConfig() {
+        if (globalResolved) {
+            return;
+        }
+        Map<String, ?> defaults = parseDefaultEnvProperty();
+        // Location precedence: programmatic override, then the property, then the
+        // built-in default. The spill flag always resolves from the property.
+        Object location = cacheLocationOverride != null ? cacheLocationOverride
+                : (defaults == null ? null : defaults.get(RestFileSystemOptions.CACHE_LOCATION));
+        globalCacheLocation = toPath(location != null ? location : DEFAULT_CACHE_LOCATION);
+        Object allow = defaults == null ? null : defaults.get(RestFileSystemOptions.ALLOW_ALTERNATE_CACHE_LOCATION);
+        globalAllowAlternate = allow != null && Boolean.parseBoolean(allow.toString());
+        globalResolved = true;
     }
 
     /**
-     * Provides the location of the on-disk cache if configured.
+     * Pins a programmatic cache-location override, allowed only while the cache
+     * is still unconfigured (before the first file system is created). Once a
+     * cache has been configured the location is fixed for the JVM, so a later
+     * call fails rather than silently having no effect. Backs
+     * {@link RestFileSystemOptions#setCacheLocation(Path)}.
      *
-     * @return path to the disk cache or {@code null} if none
+     * @param location the cache location to use for this JVM
+     * @throws IllegalStateException if the cache location is already configured
      */
-    Path getDiskCacheLocation() {
-        Object result = env.get(RestFileSystemOptions.CACHE_LOCATION);
-        if (result == null) {
-            return null;
-        } else if (result instanceof Path) {
-            return (Path) result;
-        } else if (result instanceof File) {
-            return ((File) result).toPath();
-        } else if (result instanceof String) {
-            return Paths.get(expandTilde((String) result)).normalize();
+    static synchronized void setCacheLocationOverride(Path location) {
+        if (globalResolved) {
+            throw new IllegalStateException("Cache location cannot be set: the cache is already configured at " + globalCacheLocation);
+        }
+        cacheLocationOverride = location;
+    }
+
+    /**
+     * Seeds the JVM-global cache config directly, bypassing the system property.
+     * For tests only, so they need not manipulate a global {@code -D} — set a
+     * per-test temp location here and {@link #resetGlobalCacheConfigForTest()}
+     * afterwards.
+     *
+     * @param location the cache location to use
+     * @param allowAlternate whether spill to an alternate location is allowed
+     */
+    static synchronized void setGlobalCacheConfigForTest(Path location, boolean allowAlternate) {
+        globalCacheLocation = location;
+        globalAllowAlternate = allowAlternate;
+        globalResolved = true;
+    }
+
+    /** Clears the memoized global cache config so it is re-resolved. Tests must call this to avoid leaking state. */
+    static synchronized void resetGlobalCacheConfigForTest() {
+        globalCacheLocation = null;
+        globalAllowAlternate = false;
+        globalResolved = false;
+        cacheLocationOverride = null;
+    }
+
+    /**
+     * Converts a cache-location option value ({@link Path}, {@link File}, or a
+     * {@link String} with a leading {@code ~} and {@code .}/{@code ..} segments)
+     * to a normalized {@link Path}. Java has no shell {@code ~} expansion, so a
+     * string value (e.g. from the JSON property or the built-in default) is
+     * expanded here; only a leading {@code ~} or {@code ~/} is expanded,
+     * {@code ~user} is left untouched.
+     */
+    private static Path toPath(Object value) {
+        if (value instanceof Path) {
+            return (Path) value;
+        } else if (value instanceof File) {
+            return ((File) value).toPath();
+        } else if (value instanceof String) {
+            return Paths.get(expandTilde((String) value)).normalize();
         } else {
-            throw new IllegalArgumentException("Invalid value for option " + RestFileSystemOptions.CACHE_LOCATION + ": " + result);
+            throw new IllegalArgumentException("Invalid value for option " + RestFileSystemOptions.CACHE_LOCATION + ": " + value);
         }
     }
 
-    /**
-     * Expands a leading {@code ~} to the user's home directory. Unlike a shell,
-     * Java does not resolve {@code ~} in a path string, so a value that reaches
-     * us unexpanded (e.g. from the {@link RestFileSystemOptions#DEFAULT_ENV_PROPERTY}
-     * JSON map) must be handled here. Only a leading {@code ~} (alone or followed
-     * by a separator) is expanded; {@code ~user} and non-leading tildes are left
-     * untouched.
-     *
-     * @param path the raw path string
-     * @return the path with a leading {@code ~} replaced by {@code user.home}
-     */
     private static String expandTilde(String path) {
         if (path.equals("~")) {
             return System.getProperty("user.home");
@@ -187,7 +273,7 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
         throw new IllegalArgumentException("Invalid value for option " + optionName + ": " + result);
     }
 
-    private Map<String, ?> createDefaultOptions() {
+    private static Map<String, ?> parseDefaultEnvProperty() {
         String defaultOptions = System.getProperty(RestFileSystemOptions.DEFAULT_ENV_PROPERTY);
         if (defaultOptions != null) {
             ObjectMapper objectMapper = new ObjectMapper();
@@ -195,8 +281,8 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
                 return objectMapper.readValue(defaultOptions, new TypeReference<Map<String,Object>>(){});
             } catch (JsonProcessingException x) {
                 LOG.log(Level.WARNING, "Unable to parse default rest server options: "+defaultOptions, x);
-            }        
-        } 
+            }
+        }
         return null;
     }
 }

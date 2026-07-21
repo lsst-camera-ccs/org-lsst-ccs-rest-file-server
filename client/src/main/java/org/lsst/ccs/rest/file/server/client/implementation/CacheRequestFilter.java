@@ -17,19 +17,36 @@ import org.lsst.ccs.rest.file.server.client.implementation.Cache.CacheEntry;
 class CacheRequestFilter implements ClientRequestFilter {
 
     private final Cache cache;
-    private final boolean cacheOnly;
+    private boolean cacheOnly;
+    private boolean doEntriesExpire;
 
     /**
      * Creates a filter that serves requests from the local cache when
-     * possible.
+     * possible. This filter owns the per-mount freshness policy, which used to
+     * live in {@code Cache} (see ADR 0003).
      *
      * @param cache the backing cache
      * @param cacheOnly {@code true} to avoid contacting the server and rely
      *                  solely on cached data
+     * @param doEntriesExpire {@code true} if cached entries must be revalidated
+     *                  against the server; {@code false} serves them directly
+     *                  (the immutable-URL / {@code WHEN_POSSIBLE} case)
      */
-    CacheRequestFilter(Cache cache, boolean cacheOnly) {
+    CacheRequestFilter(Cache cache, boolean cacheOnly, boolean doEntriesExpire) {
         this.cache = cache;
         this.cacheOnly = cacheOnly;
+        this.doEntriesExpire = doEntriesExpire;
+    }
+
+    /**
+     * Updates the per-mount freshness policy after construction.
+     *
+     * @param cacheOnly {@code true} to rely solely on cached data
+     * @param doEntriesExpire {@code true} to revalidate cached entries
+     */
+    void setPolicy(boolean cacheOnly, boolean doEntriesExpire) {
+        this.cacheOnly = cacheOnly;
+        this.doEntriesExpire = doEntriesExpire;
     }
 
     @Override
@@ -49,7 +66,7 @@ class CacheRequestFilter implements ClientRequestFilter {
             return;
         }
 
-        if (!entry.isExpired() || cacheOnly) {
+        if (!doEntriesExpire || cacheOnly) {
             ByteArrayInputStream is = new ByteArrayInputStream(entry.getContent());
             Response response = Response.ok(is).type(entry.getContentType()).build();
             ctx.abortWith(response);

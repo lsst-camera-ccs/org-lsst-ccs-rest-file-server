@@ -72,6 +72,18 @@ public class RestFileSystemProvider extends FileSystemProvider {
         return defaultEnvironment;
     }
 
+    /**
+     * Pins the JVM-global cache location, allowed only before the cache is
+     * configured (see {@link RestFileSystemOptions#setCacheLocation}). Bridges
+     * from the public API to the package-private resolver.
+     *
+     * @param location the cache location to use for this JVM
+     * @throws IllegalStateException if the cache location is already configured
+     */
+    public static void setCacheLocation(java.nio.file.Path location) {
+        RestFileSystemOptionsHelper.setCacheLocationOverride(location);
+    }
+
     @Override
     public FileSystem newFileSystem(URI uri, Map<String, ?> env) throws IOException {
         if (env == null) {

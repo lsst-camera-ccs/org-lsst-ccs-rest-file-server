@@ -45,6 +45,7 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
     private final RestFileSystemOptionsHelper options;
     private final RestClient restClient;
     private final Cache cache;
+    private final CacheRequestFilter cacheRequestFilter;
     private boolean offline = false;
     private static final Logger LOG = Logger.getLogger(RestFileSystem.class.getName());
     private final URI mountPoint;
@@ -66,11 +67,14 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
         Client client = ClientBuilder.newBuilder().readTimeout(3, TimeUnit.SECONDS).connectTimeout(3, TimeUnit.SECONDS).build();
         final URI restURI = computeRestURI(client);
         if (options.getCacheOptions() != RestFileSystemOptions.CacheOptions.NONE) {
-            cache = new Cache(options, getFullURI());
-            client.register(new CacheRequestFilter(cache, offline || options.getCacheFallback() == RestFileSystemOptions.CacheFallback.ALWAYS));
+            cache = new Cache(options);
+            RestFileSystemOptions.CacheFallback fallback = options.getCacheFallback();
+            cacheRequestFilter = new CacheRequestFilter(cache, isCacheOnly(fallback), doEntriesExpire(fallback));
+            client.register(cacheRequestFilter);
             client.register(new CacheResponseFilter(cache));
         } else {
             cache = null;
+            cacheRequestFilter = null;
         }
         client.register(new AddProtcolVersionRequestFilter());
         String jwt = options.getAuthToken();
@@ -117,6 +121,27 @@ public class RestFileSystem extends AbstractFileSystem implements AbstractPathBu
     
     Cache getCache() {
         return cache;
+    }
+
+    private boolean isCacheOnly(RestFileSystemOptions.CacheFallback fallback) {
+        return offline || fallback == RestFileSystemOptions.CacheFallback.ALWAYS;
+    }
+
+    private static boolean doEntriesExpire(RestFileSystemOptions.CacheFallback fallback) {
+        return fallback != RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE;
+    }
+
+    /**
+     * Updates the cache freshness policy for this mount at runtime. Policy is
+     * per-mount and lives in the request filter (see ADR 0003); this recomputes
+     * the filter's flags from the given fallback.
+     *
+     * @param fallback the cache fallback policy to apply
+     */
+    void setCacheFallbackOption(RestFileSystemOptions.CacheFallback fallback) {
+        if (cacheRequestFilter != null) {
+            cacheRequestFilter.setPolicy(isCacheOnly(fallback), doEntriesExpire(fallback));
+        }
     }
     
     RestClient getClient() {

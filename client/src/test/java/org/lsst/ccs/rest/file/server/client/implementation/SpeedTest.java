@@ -21,9 +21,10 @@ public class SpeedTest {
     @Test
     public void testSpeed() throws IOException {
         final Path tempDir = Files.createTempDirectory("rfs");
+        // Cache location is JVM-global now (ADR 0003); set it via the test backdoor.
+        RestFileSystemOptionsHelper.setGlobalCacheConfigForTest(tempDir, false);
         URI uri = URI.create("ccs://lsst-camera-dev.slac.stanford.edu/RestFileServer/");
         Map<String, Object> env = RestFileSystemOptions.builder()
-                .cacheLocation(tempDir)
                 .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
                 .set(RestFileSystemOptions.CacheFallback.OFFLINE)
                 .build();
@@ -35,7 +36,7 @@ public class SpeedTest {
         long time2 = readFile(pathInRestServer);
         Assert.assertTrue(time2<time1);
 
-        ((RestFileSystem)restfs).getCache().setCacheFallbackOption(RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE);
+        ((RestFileSystem)restfs).setCacheFallbackOption(RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE);
         // Now it should come from cache without trips to the remote server
         long time3 = readFile(pathInRestServer);
         Assert.assertTrue(time3<=time2);
@@ -49,7 +50,7 @@ public class SpeedTest {
         long time5 = readFile(pathInRestServer2);
         Assert.assertTrue(time5<time4);
 
-        ((RestFileSystem)restfs).getCache().setCacheFallbackOption(RestFileSystemOptions.CacheFallback.OFFLINE);
+        ((RestFileSystem)restfs).setCacheFallbackOption(RestFileSystemOptions.CacheFallback.OFFLINE);
         // This time it should still come from the cache, but with round trips to the server,
         // so it should be slower than the previous result.
         long time6 = readFile(pathInRestServer2);

@@ -16,11 +16,10 @@ import java.util.stream.Collectors;
 import javax.ws.rs.core.UriBuilder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
 import org.lsst.ccs.rest.file.server.client.implementation.Cache.CacheEntry;
@@ -31,6 +30,15 @@ import org.lsst.ccs.web.rest.file.server.TestServer;
  * @author tonyj
  */
 public class CachingTest {
+
+    /**
+     * The cache location is JVM-global (ADR 0003). Tests point it at a temp dir
+     * via the backdoor and reset it here so state does not leak between tests.
+     */
+    @AfterEach
+    public void resetGlobalCacheConfig() {
+        RestFileSystemOptionsHelper.resetGlobalCacheConfigForTest();
+    }
 
     @Test
     public void cacheTest()  throws URISyntaxException, IOException, InterruptedException {
@@ -46,8 +54,8 @@ public class CachingTest {
         TestServer testServer = new TestServer(port);
         URI restRootURI = UriBuilder.fromUri(testServer.getServerURI()).scheme("ccs").build();
         final Path tempDir = Files.createTempDirectory("rfs");
+        RestFileSystemOptionsHelper.setGlobalCacheConfigForTest(tempDir, false);
         Map<String, Object> env = RestFileSystemOptions.builder()
-                .cacheLocation(tempDir)
                 .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
                 .set(cacheMode)
                 .build();
@@ -65,17 +73,17 @@ public class CachingTest {
             Cache cache = client.getCache();
             URI tmpFileUri = client.getURI("rest/download/"+fileName);
             URI fileUri = new URI(tmpFileUri.toString().replace("ccs:", "http:"));
-            
+
             listAndRead(pathInRestServer, content, 1);
             CacheEntry e = cache.getEntry(fileUri);
             assertNotNull(e);
             assertEquals(0, e.getUpdateCount());
-            
+
             // Read again, this time should use the cache
             listAndRead(pathInRestServer, content, 1);
             // Wen using WHEN_POSSIBLE, cache is never updated
             assertEquals(cacheMode == RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE ? 0 : 1, e.getUpdateCount());
-            
+
             // Change the file, and make sure things still work as expected
             // Note, the file cache uses "lastModified" timestamps, which are only accurate to 1 second
             // so need to pause to make sure new file has a different timestamp
@@ -94,7 +102,7 @@ public class CachingTest {
             // Read again, this time should use the cache
             listAndRead(pathInRestServer, expectedContents, 1);
             assertEquals(cacheMode == RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE ? 0 : 1, e.getUpdateCount());
-            
+
             Path pathInRestServer2 = restfs.getPath(fileName + "2");
             // Create a new file, and make sure the directory listing shows it
             try (BufferedWriter writer = Files.newBufferedWriter(pathInRestServer2)) {
@@ -105,7 +113,7 @@ public class CachingTest {
             listAndRead(pathInRestServer, expectedContents, expectedDirectorySize);
             // In this case cache entry will not have changed, so no need to refetch it.
             assertEquals(cacheMode == RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE ? 0 : 2, e.getUpdateCount());
-            
+
             // Read again, this time should use the cache
             listAndRead(pathInRestServer, expectedContents, expectedDirectorySize);
             assertEquals(cacheMode == RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE ? 0 : 3, e.getUpdateCount());
@@ -117,8 +125,8 @@ public class CachingTest {
         TestServer testServer = new TestServer();
         URI restRootURI = UriBuilder.fromUri(testServer.getServerURI()).scheme("ccs").build();
         final Path tempDir = Files.createTempDirectory("rfs");
+        RestFileSystemOptionsHelper.setGlobalCacheConfigForTest(tempDir, false);
         Map<String, Object> env = RestFileSystemOptions.builder()
-                .cacheLocation(tempDir)
                 .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
                 .set(RestFileSystemOptions.CacheFallback.OFFLINE)
                 .build();
@@ -172,54 +180,48 @@ public class CachingTest {
     }
 
     /**
-     * Two different servers sharing one base cache location must both start:
-     * each gets its own per-server subdirectory (and JCS region), so there is no
-     * lock collision between distinct servers.
+     * Two different servers in one JVM share the single per-JVM cache: each
+     * resolves the same disk directory, and an entry cached through one mount is
+     * visible through the other (they back onto the same JCS region). This
+     * inverts ADR 0001's isolation assertion.
      */
     @Test
-    public void multiServerSharedBaseTest() throws URISyntaxException, IOException {
+    public void multiMountSharedCacheTest() throws URISyntaxException, IOException {
         final Path tempDir = Files.createTempDirectory("rfs");
+        RestFileSystemOptionsHelper.setGlobalCacheConfigForTest(tempDir, false);
 
         TestServer testServer = new TestServer();
         TestServer testServer2 = new TestServer(9998);
         try {
             URI restRootURI = UriBuilder.fromUri(testServer.getServerURI()).scheme("ccs").build();
-            Map<String, Object> env = RestFileSystemOptions.builder()
-                    .cacheLocation(tempDir)
-                    .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
-                    .set(RestFileSystemOptions.CacheFallback.OFFLINE)
-                    .build();
             URI restRootURI2 = UriBuilder.fromUri(testServer2.getServerURI()).scheme("ccs").build();
-            Map<String, Object> env2 = RestFileSystemOptions.builder()
-                    .cacheLocation(tempDir)
+            Map<String, Object> env = RestFileSystemOptions.builder()
                     .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
                     .set(RestFileSystemOptions.CacheFallback.OFFLINE)
                     .build();
             try (FileSystem restfs = FileSystems.newFileSystem(restRootURI, env);
-                    FileSystem restfs2 = FileSystems.newFileSystem(restRootURI2, env2)) {
-                // Both file systems must have started, with distinct regions and disk dirs.
+                    FileSystem restfs2 = FileSystems.newFileSystem(restRootURI2, env)) {
                 RestFileSystem client = (RestFileSystem) restfs;
                 RestFileSystem client2 = (RestFileSystem) restfs2;
                 Cache cache = client.getCache();
                 Cache cache2 = client2.getCache();
-                assertNotEquals(cache.getRegion(), cache2.getRegion());
-                assertNotEquals(cache.getDiskCacheLocation(), cache2.getDiskCacheLocation());
+                // Both mounts share the one per-JVM cache directory.
+                assertEquals(cache.getDiskCacheLocation(), cache2.getDiskCacheLocation());
                 assertTrue(Files.isDirectory(cache.getDiskCacheLocation()));
-                assertTrue(Files.isDirectory(cache2.getDiskCacheLocation()));
 
-                // Write and read a file through the first server, populating its cache.
+                // Write and read a file through the first server, populating the cache.
                 final String content = "cached on server one";
-                final String fileName = "isolated.txt";
+                final String fileName = "shared.txt";
                 Path pathInServer1 = restfs.getPath(fileName);
                 try (BufferedWriter writer = Files.newBufferedWriter(pathInServer1)) {
                     writer.append(content);
                 }
                 listAndRead(pathInServer1, content, 1);
 
-                // The entry lives in server one's cache but not in server two's.
+                // The entry is visible through both caches: they share one JCS region.
                 URI fileUri = new URI(client.getURI("rest/download/" + fileName).toString().replace("ccs:", "http:"));
                 assertNotNull(cache.getEntry(fileUri));
-                assertNull(cache2.getEntry(fileUri));
+                assertNotNull(cache2.getEntry(fileUri));
             }
         } finally {
             testServer.shutdown();
@@ -228,39 +230,26 @@ public class CachingTest {
     }
 
     /**
-     * Genuine contention on a single server's cache directory must still be
-     * rejected: a second cache for the same server URI and base location cannot
-     * take the disk lock, and {@code ALLOW_ALTERNATE_CACHE_LOCATION} lets it fall
-     * back to a sibling directory.
+     * Two caches for the same location in one JVM must both succeed: the second
+     * gets an {@code OverlappingFileLockException}, recognises the location is
+     * already held by this JVM, and shares it (no lock, same directory). Genuine
+     * cross-process contention (a foreign {@code tryLock()} returning null) is
+     * covered by {@link CacheLockCrossJvmTest}.
      */
     @Test
-    public void cacheLockTest() throws URISyntaxException, IOException {
+    public void sameJvmCacheShareTest() throws URISyntaxException, IOException {
         final Path tempDir = Files.createTempDirectory("rfs");
-        final URI serverURI = new URI("ccs://localhost:9999/RestFileServer/");
+        RestFileSystemOptionsHelper.setGlobalCacheConfigForTest(tempDir, false);
 
         Map<String, Object> env = RestFileSystemOptions.builder()
-                .cacheLocation(tempDir)
                 .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
                 .set(RestFileSystemOptions.CacheFallback.OFFLINE)
                 .build();
-        Cache cache = new Cache(new RestFileSystemOptionsHelper(env), serverURI);
+        Cache cache = new Cache(new RestFileSystemOptionsHelper(env));
         try {
-            try {
-                new Cache(new RestFileSystemOptionsHelper(env), serverURI);
-                fail();
-            } catch (IOException x) {
-                assertTrue(x.getMessage().contains("in use"));
-            }
-
-            Map<String, Object> env2 = RestFileSystemOptions.builder()
-                    .cacheLocation(tempDir)
-                    .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
-                    .set(RestFileSystemOptions.CacheFallback.OFFLINE)
-                    .ignoreLockedCache(true)
-                    .build();
-            Cache cache2 = new Cache(new RestFileSystemOptionsHelper(env2), serverURI);
-            // The alternate location must differ from the primary one.
-            assertNotEquals(cache.getDiskCacheLocation(), cache2.getDiskCacheLocation());
+            Cache cache2 = new Cache(new RestFileSystemOptionsHelper(env));
+            // The second cache shares the first's location rather than failing.
+            assertEquals(cache.getDiskCacheLocation(), cache2.getDiskCacheLocation());
             cache2.close();
         } finally {
             cache.close();

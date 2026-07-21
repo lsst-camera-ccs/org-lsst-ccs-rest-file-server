@@ -31,7 +31,12 @@ import org.lsst.ccs.web.rest.file.server.TestServer;
  */
 public class VersionedFileTest {
 
-    
+    /** Reset the JVM-global cache location set via the backdoor (ADR 0003). */
+    @org.junit.jupiter.api.AfterEach
+    public void resetGlobalCacheConfig() {
+        RestFileSystemOptionsHelper.resetGlobalCacheConfigForTest();
+    }
+
     @Test
     public void fileWithVersionTest() throws IOException {
         RestPath path = new RestPath(null, "/file(7).txt");
@@ -90,8 +95,9 @@ public class VersionedFileTest {
         TestServer testServer = new TestServer(port);
         URI restRootURI = UriBuilder.fromUri(testServer.getServerURI()).scheme("ccs").build();
         final Path tempDir = Files.createTempDirectory("rfs");
+        // Cache location is JVM-global now (ADR 0003); set it via the test backdoor.
+        RestFileSystemOptionsHelper.setGlobalCacheConfigForTest(tempDir, false);
         Map<String, Object> env = RestFileSystemOptions.builder()
-                .cacheLocation(tempDir)
                 .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
                 .set(cacheMode)
                 .build();

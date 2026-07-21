@@ -5,26 +5,33 @@
 
 ## State
 
-Branch `LSSTCCS-3029` has the ADR 0001 + 0002 work implemented, tested (35 client tests pass),
-and committed (`666f59c` isolation, `7ecd9ea` cascade, `781dcb9` ~ expansion, `4a19526` docs).
+**ADR 0003 is implemented across all three repos** (one shared cache per JVM; cache location + spill
+flag JVM-global; caching policy per-mount; the per-FS `cacheLocation()`/`ignoreLockedCache()` builder
+methods removed and replaced by a set-once `setCacheLocation(Path)` that also backs the CLI's
+`--cacheDir`).
 
-A design session with Tony reversed direction on 0001. The 2026-07-21 brainstorm settled the full
-design: **one shared cache per JVM**, cache location + spill flag go **JVM-global**, caching policy
-stays per-mount. Now recorded in [ADR 0003](../decisions/0003-shared-per-jvm-cache.md) (proposed,
-amends [0002](../decisions/0002-option-resolution-cascade.md)). No 0003 code written yet — the branch
-still contains the 0001 isolation code that 0003 unwinds.
+- **rest-file-server (this repo):** 0003 implemented + the API cleanup, `mvn install` green
+  (client 42 tests, war 9, cli builds). **Working tree is uncommitted** — the docs are committed
+  through `ae22a5c` (that commit is also unpushed); the 0003 client/cli implementation + this doc
+  refresh are not yet committed. No PR opened yet.
+- **bootstrap:** `<app|default>` token + shipped `defaultEnvironment` line — committed, pushed,
+  PR #20.
+- **toolkit:** client bumped to 1.1.10-SNAPSHOT + `RemoteFileServer` cleanup — committed, pushed,
+  PR #316.
 
-The **bootstrap half is done**: the `<app|default>` token + `getJavaOpts` resolution and the shipped
-`defaultEnvironment` line are implemented, tested, and in PR
-(`org-lsst-ccs-bootstrap` PR #20, branch `LSSTCCS-3029`). It's runtime-coupled only — no build
-dependency, does not block this client work (see the workplan's deployment section).
+The three are coupled only at deployment (no build dependency on each other's SNAPSHOTs beyond the
+toolkit's declared versions); roll out together.
 
 ## Next up
 
-**Build ADR 0003 per the workplan:**
-[LSSTCCS-3029 — One shared cache per JVM](LSSTCCS-3029-shared-per-jvm-cache.md). It holds the full
-step-by-step (client-only for correctness; toolkit is non-blocking cleanup). The design decisions
-live in ADR 0003; this workplan is the how, and is the doc to share with Tony.
+- **Commit + push this repo and open its PR** (client 0003 implementation + API cleanup + doc
+  refresh). This is the linchpin the toolkit/bootstrap PRs pair with.
+- Optional: full toolkit reactor build (`mvn install`) to confirm nothing downstream of
+  `core/configuration` breaks — only that module + its deps were built so far.
+- Then the deferred deployment-config items below.
+
+Design detail lives in [ADR 0003](../decisions/0003-shared-per-jvm-cache.md); the build steps (now
+executed) are in the [workplan](LSSTCCS-3029-shared-per-jvm-cache.md).
 
 ## Deferred (deployment-config, not code)
 

@@ -34,9 +34,10 @@ A single location, JCS region (`default`), and disk store shared by every mount.
 
 `CacheLocation` and `CacheFallbackLocation` (the spill flag) describe the single per-JVM cache, so
 they are resolved **once, before the first file system is created**, and *not* per mount. Their
-resolution order is: a package-private test backdoor → the `DEFAULT_ENV_PROPERTY` JSON map → a
-built-in default. Per-file-system `env` no longer supplies these two keys; the builder methods
-`cacheLocation()` and `ignoreLockedCache()` are `@Deprecated` and become **no-ops**. This
+resolution order is: a programmatic override (`RestFileSystemOptions.setCacheLocation(Path)`, allowed
+only before the first cache is configured; used by the CLI's `--cacheDir`) → the `DEFAULT_ENV_PROPERTY`
+JSON map → a built-in default. Per-file-system `env` no longer supplies these two keys, and the
+per-FS builder methods `cacheLocation()` and `ignoreLockedCache()` are **removed**. This
 **amends [0002](0002-option-resolution-cascade.md)**, which resolved *every* key through the
 per-key cascade — these two keys now leave it.
 
@@ -109,9 +110,12 @@ via the JSON, so plain callers do not write a disk cache under the always-presen
 
 - Reverts 0001: per-server region/subdir logic, `.ccf` tokenization, and `multiServerSharedBaseTest`
   are removed or rewritten.
-- The client stops *reading* per-FS `CacheLocation`/`CacheFallbackLocation`, so the toolkit's
-  `.cacheLocation()`/`.ignoreLockedCache()` calls (client 1.1.8) become inert without a rebuild.
-  The toolkit change is therefore **cosmetic cleanup, not a required coordinated change**.
+- The client stops *reading* per-FS `CacheLocation`/`CacheFallbackLocation`. The per-FS builder
+  methods `cacheLocation()`/`ignoreLockedCache()` are **removed** (only this repo and the toolkit
+  used them), so the toolkit must **rebuild** against the new client and drop those calls — a
+  required coordinated change, done in the toolkit's LSSTCCS-3029 PR. (An earlier draft kept the
+  methods as deprecated no-ops for drop-in compatibility; removal was chosen since the callers are
+  all in-tree.)
 - Sharing one region means sharing its `MaxObjects` budget (now 2500); mounts can evict each other.
   Eviction is cheap — an evicted immutable entry is re-fetched, or fails per the rules below.
 - Accepted failures, both allowed to be loud: no free cache slot after spill → fail at construction;

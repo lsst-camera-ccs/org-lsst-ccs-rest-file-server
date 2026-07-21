@@ -1,14 +1,12 @@
-# PER-SERVER DISK CACHE
-# %REGION% and %AUX% are substituted per remote file system by Cache.java so that
-# each server gets its own region backed by its own disk auxiliary and DiskPath.
-# The DiskPath attribute is set programmatically (per-server directory) rather than here.
-jcs.region.%REGION%=%AUX%
+# DEFAULT CACHE REGION
+jcs.default=DC
 
 # AVAILABLE AUXILIARY CACHES
-jcs.auxiliary.%AUX%=org.apache.commons.jcs3.auxiliary.disk.indexed.IndexedDiskCacheFactory
-jcs.auxiliary.%AUX%.attributes=org.apache.commons.jcs3.auxiliary.disk.indexed.IndexedDiskCacheAttributes
-jcs.auxiliary.%AUX%.attributes.MaxPurgatorySize=10000000
-jcs.auxiliary.%AUX%.attributes.MaxKeySize=1000000
-jcs.auxiliary.%AUX%.attributes.OptimizeAtRemoveCount=300000
-jcs.auxiliary.%AUX%.attributes.ShutdownSpoolTimeLimit=60
-jcs.auxiliary.%AUX%.cacheattributes.DiskUsagePatternName=UPDATE
+# DiskPath is set programmatically per JVM by Cache.java (the resolved global cache location).
+jcs.auxiliary.DC=org.apache.commons.jcs3.auxiliary.disk.indexed.IndexedDiskCacheFactory
+jcs.auxiliary.DC.attributes=org.apache.commons.jcs3.auxiliary.disk.indexed.IndexedDiskCacheAttributes
+jcs.auxiliary.DC.attributes.MaxPurgatorySize=10000000
+jcs.auxiliary.DC.attributes.MaxKeySize=1000000
+jcs.auxiliary.DC.attributes.OptimizeAtRemoveCount=300000
+jcs.auxiliary.DC.attributes.ShutdownSpoolTimeLimit=60
+jcs.auxiliary.DC.cacheattributes.DiskUsagePatternName=UPDATE

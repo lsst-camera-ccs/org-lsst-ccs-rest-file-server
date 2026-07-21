@@ -15,17 +15,18 @@ spill flag JVM-global** (resolved once, before any file system is created), keep
 per-mount**, and restore the lock to a **cross-JVM-only** guard where same-JVM mounts share instead
 of colliding.
 
-This is a **client-only** change. **No changes are required on the toolkit side**: the client stops
-reading the per-FS `CacheLocation`/`ignoreLockedCache` values, so the toolkit's existing calls become
-inert no-ops on upgrade — it keeps working unchanged. Removing those now-dead calls is optional
-cleanup (step 6), not a prerequisite.
+This is a **client + coordinated toolkit** change. The client stops reading the per-FS
+`CacheLocation`/`ignoreLockedCache` values and **removes** those builder methods, so the toolkit must
+rebuild against the new client and drop those calls (step 6) — a required coordinated change, done in
+the toolkit's LSSTCCS-3029 PR. It is runtime/deployment-coupled, not a build dependency of this repo.
 
 ## Design summary (see ADR 0003 for the why)
 
 - **One cache per JVM.** Region `default`, single disk store at the resolved location.
-- **Global config.** `CacheLocation` + `CacheFallbackLocation` resolved once: test backdoor →
-  `DEFAULT_ENV_PROPERTY` JSON → built-in default `~/ccs/cache/default`. Per-FS `env` for these two
-  is ignored; builder setters deprecated + no-op.
+- **Global config.** `CacheLocation` + `CacheFallbackLocation` resolved once: programmatic override
+  (`setCacheLocation(Path)`, set-once; used by the CLI's `--cacheDir`) → `DEFAULT_ENV_PROPERTY` JSON
+  → built-in default `~/ccs/cache/default`. Per-FS `env` for these two is ignored; the per-FS builder
+  setters `cacheLocation()`/`ignoreLockedCache()` are removed. (Tests seed the globals via a backdoor.)
 - **Per-FS policy.** `CacheOptions` (default `NONE`) and `CacheFallback` still flow the 0002 cascade.
 - **Lock.** Three `tryLock()` outcomes on `<loc>/lockFile`: lock → own it; overlap-exception →
   another mount in *this* JVM → share (no lock); `null` → another process → spill `<loc>-N` (if the
@@ -70,15 +71,15 @@ in `memory.ccf`. Keep `disk.ccf`'s `DiskPath` unset (set programmatically in `Ca
 `CacheLocation` and `CacheFallbackLocation` become JVM-global, resolved before the first FS:
 
 - Add a global resolver (a static holder) that returns the location and spill flag from, in order:
-  a package-private test backdoor → `DEFAULT_ENV_PROPERTY` JSON → built-in default
-  `~/ccs/cache/default`. Move the leading-`~` + `Path.normalize()` handling
-  (`RestFileSystemOptionsHelper.expandTilde`/`getDiskCacheLocation`, `:117-150`) into this resolver
-  and apply it to the built-in default too.
-- Stop reading these two keys from the per-FS merged env, so a per-FS `cacheLocation()` /
-  `ignoreLockedCache()` value is inert (this is what makes the toolkit call a no-op without a rebuild).
-- Deprecate `RestFileSystemOptions.Builder.cacheLocation()` and `ignoreLockedCache()`
-  (`RestFileSystemOptions.java:172`, and the `cacheLocation` builder method) as no-ops; add the
-  package-private backdoor setter(s) that relocate the globals for tests, resettable per test.
+  a programmatic override → `DEFAULT_ENV_PROPERTY` JSON → built-in default `~/ccs/cache/default`.
+  Move the leading-`~` + `Path.normalize()` handling into this resolver and apply it to the built-in
+  default too. The override pins location only; the spill flag always resolves from the property.
+- Stop reading these two keys from the per-FS merged env, and **remove** the per-FS builder methods
+  `RestFileSystemOptions.Builder.cacheLocation(File/Path)` and `ignoreLockedCache()` (only this repo
+  and the toolkit called them).
+- Add a public `RestFileSystemOptions.setCacheLocation(Path)` (bridged via `RestFileSystemProvider`)
+  that pins the override, allowed only before the cache is configured (else `IllegalStateException`).
+  Add a package-private backdoor setter/reset for tests.
 
 - `client/.../implementation/RestFileSystemOptionsHelper.java`
 - `client/.../RestFileSystemOptions.java`
@@ -140,12 +141,13 @@ Document the JVM-scoped-`FileLock` asymmetry and the release-on-acquiring-mount 
 
 - `client/src/test/.../implementation/CachingTest.java`, `SpeedTest.java`, `VersionedFileTest.java`
 
-### 6. Toolkit — no changes needed (optional cleanup)
+### 6. Toolkit — required coordinated rebuild
 
-**Nothing must change in the toolkit.** On client upgrade, `RemoteFileServer.createFileSystem`'s
-`.cacheLocation(...)` and `.ignoreLockedCache(true)` (`core/configuration/.../RemoteFileServer.java:157,159`)
-become inert no-ops — the toolkit keeps working unchanged. Removing those dead calls is optional
-cleanup, done after the client work. Toolkit is version-coupled (client 1.1.8; this is 1.1.10-SNAPSHOT).
+Because the per-FS builder methods are **removed**, the toolkit must rebuild against the new client:
+bump `org-lsst-ccs-rest-file-server-client` to 1.1.10-SNAPSHOT and drop
+`RemoteFileServer.createFileSystem`'s `.cacheLocation(...)` / `.ignoreLockedCache(true)` calls (plus
+the now-dead per-service `cacheDir`). Done in the toolkit's LSSTCCS-3029 PR. Version-coupled at
+deployment (roll out with the new client + bootstrap), not a build dependency of this repo.
 
 ## Verify
 

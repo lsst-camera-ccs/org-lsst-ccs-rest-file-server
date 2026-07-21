@@ -80,7 +80,9 @@ public class TopLevelCommand {
             options.put(RestFileSystemOptions.CACHE_FALLBACK, cacheFallback);
         }
         if (cacheLocation != null) {
-            options.put(RestFileSystemOptions.CACHE_LOCATION, cacheLocation);
+            // Cache location is JVM-global and fixed before the first mount (ADR 0003);
+            // set it here rather than as a per-file-system option, which is ignored.
+            RestFileSystemOptions.setCacheLocation(cacheLocation.toPath());
         }
         if (authToken != null) {
             options.put(RestFileSystemOptions.AUTH_TOKEN, authToken);

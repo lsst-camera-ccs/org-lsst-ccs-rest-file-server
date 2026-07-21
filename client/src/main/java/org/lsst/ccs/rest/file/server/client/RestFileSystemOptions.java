@@ -1,6 +1,5 @@
 package org.lsst.ccs.rest.file.server.client;
 
-import java.io.File;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -87,28 +86,6 @@ public class RestFileSystemOptions {
         private final Map<String, Object> map = new HashMap<>();
 
         /**
-         * Specifies the cache location using a {@link File} path.
-         *
-         * @param location directory where the cache should be stored
-         * @return this builder for method chaining
-         */
-        public Builder cacheLocation(File location) {
-            map.put(CACHE_LOCATION, location);
-            return this;
-        }
-
-        /**
-         * Specifies the cache location using a {@link Path}.
-         *
-         * @param location path where the cache should be stored
-         * @return this builder for method chaining
-         */
-        public Builder cacheLocation(Path location) {
-            map.put(CACHE_LOCATION, location);
-            return this;
-        }
-
-        /**
          * Enables or disables cache activity logging.
          *
          * @param log {@code true} to enable logging
@@ -164,17 +141,6 @@ public class RestFileSystemOptions {
         }
 
         /**
-         * Allows the cache to fall back to an alternate location when locked.
-         *
-         * @param allow {@code true} to permit alternate cache locations
-         * @return this builder for method chaining
-         */
-        public Builder ignoreLockedCache(boolean allow) {
-            map.put(ALLOW_ALTERNATE_CACHE_LOCATION, allow);
-            return this;
-        }
-
-        /**
          * Sets the mount point URI for the file system.
          *
          * @param mountPoint URI identifying the desired mount point
@@ -203,5 +169,20 @@ public class RestFileSystemOptions {
      */
     public static void setDefaultFileSystemEnvironment(Map<String, ?> defaultEnv) {
         RestFileSystemProvider.setDefaultFileSystemOption(defaultEnv);
+    }
+
+    /**
+     * Sets the JVM-global on-disk cache location. The cache is one-per-JVM (see
+     * ADR 0003) and its location is fixed once the first {@code ccs://} file
+     * system is created, so this must be called <em>before</em> any caching file
+     * system is opened; a location supplied later cannot take effect and is
+     * rejected. Takes precedence over the {@link #DEFAULT_ENV_PROPERTY} value;
+     * the spill flag still comes from that property.
+     *
+     * @param location directory where the disk cache should be stored
+     * @throws IllegalStateException if the cache location is already configured
+     */
+    public static void setCacheLocation(Path location) {
+        RestFileSystemProvider.setCacheLocation(location);
     }
 }
