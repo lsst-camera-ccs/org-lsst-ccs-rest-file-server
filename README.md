@@ -26,8 +26,9 @@ NIO provider), and `cli` (the `cfs` command-line tool).
 Documentation is organized by lifecycle under [`docs/`](docs/):
 
 - **Decisions (ADRs — the *why*)**
-  - [0001 — Per-file-system cache isolation](docs/decisions/0001-per-file-system-cache-isolation.md)
+  - [0001 — Per-file-system cache isolation](docs/decisions/0001-per-file-system-cache-isolation.md) (largely superseded by 0003)
   - [0002 — Option resolution cascade for the ccs:// client](docs/decisions/0002-option-resolution-cascade.md)
+  - [0003 — One shared cache per JVM, policy in the file system](docs/decisions/0003-shared-per-jvm-cache.md)
 - **Guides (the *how it behaves*)**
   - [Toolkit remote-file-server cache compatibility](docs/guides/toolkit-cache-compatibility.md)
 - **Workplans (the *how we'll build it*)**

@@ -5,25 +5,34 @@
 
 ## State
 
-Two changes on branch `LSSTCCS-3029`, **implemented and tested, not yet merged**. All 35
-client tests pass.
+Branch `LSSTCCS-3029` has the ADR 0001 + 0002 work implemented, tested (35 client tests pass),
+and committed (`666f59c` isolation, `7ecd9ea` cascade, `781dcb9` ~ expansion, `4a19526` docs).
 
-1. **Per-file-system cache isolation** (ADR 0001, workplan LSSTCCS-3029). Each `ccs://` file
-   system gets its own JCS region and disk directory, keyed off a stable hash of
-   `getFullURI()`. `CACHE_LOCATION` is now a *base* directory; each server caches under
-   `<base>/<key>`. Committed as `666f59c`. The ADR's main risk is resolved: repeated
-   `ccm.configure(props)` on the singleton **accumulates** regions rather than resetting them.
-
-2. **Option resolution cascade** (ADR 0002). Options now resolve per key: explicit env →
-   programmatic default → `DEFAULT_ENV_PROPERTY` system property → hardcoded fallback, merged
-   in the `RestFileSystemOptionsHelper` constructor. This makes the system property live on
-   the bootstrap `newFileSystem(uri, null)` path (it was previously shadowed by the non-null
-   empty `NO_ENV` map). Auth token now read through the helper too. Not yet committed.
+A design session with Tony then **reversed direction on 0001**. See
+[ADR 0003](../decisions/0003-shared-per-jvm-cache.md) (proposed): one shared cache per JVM
+instead of per-file-system isolation. 0002 (the option cascade) stands and is depended on. No
+0003 code written yet — the branch still contains the 0001 isolation code that 0003 unwinds.
 
 ## Next up
 
-- Commit the cascade work (ADR 0002 + helper/provider/RestFileSystem/DefaultEnvTest changes).
-- Review + merge branch `LSSTCCS-3029`.
-- Decide and set the actual bootstrap default policy (e.g. system property
-  `{"CacheOptions":"MEMORY_AND_DISK","CacheLocation":"..."}`) — the mechanism now works; the
-  chosen values/location for base and summit are a deployment-config decision, not code.
+Implement ADR 0003 (client + a coordinated toolkit change):
+
+1. **Client — collapse to one cache per JVM.** Undo 0001's per-server region + disk subdir and
+   `.ccf` tokenization in `Cache`. Restore the lock as a cross-JVM-only guard with `<name>-N`
+   spill on collision.
+2. **Client — move policy out of `Cache`.** Make `Cache` policy-free storage; move the expiry
+   decision (`doEntriesExpire`) into the per-mount `CacheRequestFilter`. Drop
+   `CacheEntry.isExpired` and `setCacheFallbackOption`; adjust `SpeedTest`.
+3. **Client — tests.** Remove/rewrite `multiServerSharedBaseTest`; restore `cacheLockTest`'s
+   cross-process premise.
+4. **Toolkit.** `RemoteFileServer.createFileSystem` must stop setting `CacheLocation` so the
+   bootstrap system-property name reaches every mount. Toolkit is at
+   `/home/turri/Code/LSST/ccs/org-lsst-ccs-toolkit` (still on client 1.1.8).
+
+## Deferred (deployment-config, not code)
+
+- Raise `MaxObjects` in the `.ccf` — mounts now share one region's budget.
+- Per-agent-category default policy: role agents (unique, reproducible names) reattach with a
+  persistent disk cache; `ccs-shell`/`ccs-console` (unique, non-reproducible names) don't
+  reattach — decide `OFFLINE` vs `WHEN_POSSIBLE` and memory vs disk per category.
+- Bootstrap default `defaultEnvironment` values/location for base and summit.

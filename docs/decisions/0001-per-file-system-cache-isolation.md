@@ -1,6 +1,6 @@
 # 0001 — Per-file-system cache isolation
 
-- Status: accepted
+- Status: largely superseded by [0003](0003-shared-per-jvm-cache.md)
 - Date: 2026-07-20
 - Ticket: LSSTCCS-3029
 

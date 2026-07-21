@@ -4,6 +4,10 @@
 - ADR: [0001 — Per-file-system cache isolation](../decisions/0001-per-file-system-cache-isolation.md)
 - Line numbers anchored to commit `058fe1a`; use `git show 058fe1a:<path>` if they look off.
 
+> **Done and committed, but largely superseded.** This built ADR 0001;
+> [ADR 0003](../decisions/0003-shared-per-jvm-cache.md) now reverses it. See HANDOFF for the
+> current plan. Kept for history.
+
 ## Goal
 
 Each `ccs://` remote file system gets its own JCS region and its own disk directory,
