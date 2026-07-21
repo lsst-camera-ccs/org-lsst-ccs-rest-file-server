@@ -1,8 +1,15 @@
 # 0002 — Option resolution cascade for the ccs:// client
 
-- Status: accepted
+- Status: accepted (amended by [0003](0003-shared-per-jvm-cache.md) for two keys — see note below)
 - Date: 2026-07-20
 - Ticket: LSSTCCS-3029
+
+> **Amended by [ADR 0003](0003-shared-per-jvm-cache.md).** The cascade below still governs
+> per-file-system options (`CacheOptions`, `CacheFallback` policy, mount point, SSL, auth). But
+> `CacheLocation` and `CacheFallbackLocation` describe the single per-JVM cache, so 0003 pulls them
+> *out* of the per-key cascade and resolves them once, globally (test backdoor → `DEFAULT_ENV_PROPERTY`
+> → built-in default `~/ccs/cache/default`); per-FS `env` no longer supplies them. The tilde/normalize
+> handling below moves with `CacheLocation` to that global resolver.
 
 ## Context
 

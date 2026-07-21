@@ -27,12 +27,13 @@ Documentation is organized by lifecycle under [`docs/`](docs/):
 
 - **Decisions (ADRs — the *why*)**
   - [0001 — Per-file-system cache isolation](docs/decisions/0001-per-file-system-cache-isolation.md) (largely superseded by 0003)
-  - [0002 — Option resolution cascade for the ccs:// client](docs/decisions/0002-option-resolution-cascade.md)
-  - [0003 — One shared cache per JVM, policy in the file system](docs/decisions/0003-shared-per-jvm-cache.md)
+  - [0002 — Option resolution cascade for the ccs:// client](docs/decisions/0002-option-resolution-cascade.md) (amended by 0003)
+  - [0003 — One shared cache per JVM, global cache config, policy in the file system](docs/decisions/0003-shared-per-jvm-cache.md)
 - **Guides (the *how it behaves*)**
   - [Toolkit remote-file-server cache compatibility](docs/guides/toolkit-cache-compatibility.md)
 - **Workplans (the *how we'll build it*)**
-  - [LSSTCCS-3029 — Per-file-system cache isolation](docs/workplans/LSSTCCS-3029-per-file-system-cache-isolation.md)
+  - [LSSTCCS-3029 — One shared cache per JVM](docs/workplans/LSSTCCS-3029-shared-per-jvm-cache.md) (active — ADR 0003)
+  - [LSSTCCS-3029 — Per-file-system cache isolation](docs/workplans/LSSTCCS-3029-per-file-system-cache-isolation.md) (superseded — ADR 0001)
   - [HANDOFF — current state + backlog](docs/workplans/HANDOFF.md)
 
 ## Build & test
