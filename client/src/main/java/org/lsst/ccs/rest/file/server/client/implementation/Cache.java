@@ -29,12 +29,18 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
  * Simple in-memory or disk-backed cache used to store server responses. The
  * cache is optional and its behaviour is controlled by
  * {@link RestFileSystemOptions}.
+ * <p>
+ * There is one cache per JVM (see ADR 0003): a single JCS {@code default}
+ * region and, for {@code MEMORY_AND_DISK}, a single disk store at the resolved
+ * global cache location, shared by every mount. {@code Cache} is policy-free
+ * storage; the freshness/expiry policy lives in the per-mount
+ * {@link CacheRequestFilter}.
  */
 class Cache implements Closeable {
 
     private CacheAccess<URI, CacheEntry> map;
     private FileLock lock;
-    private RestFileSystemOptions.CacheFallback cacheFallback;
+    private Path diskCacheLocation;
 
     /**
      * Creates a new cache instance based on the supplied options.
@@ -59,59 +65,81 @@ class Cache implements Closeable {
             try ( InputStream in = Cache.class.getResourceAsStream("disk.ccf")) {
                 props.load(in);
             }
-            Path cacheLocation = options.getDiskCacheLocation();
-            if (cacheLocation != null) {
-                // Check that we can lock the cache, and if not what to do about it
-                for (int n = 1; n < 100; n++) {
-                    Files.createDirectories(cacheLocation);
-                    if (Files.isDirectory(cacheLocation) || Files.isWritable(cacheLocation)) {
-                        Path lockFile = cacheLocation.resolve("lockFile");
-                        FileChannel lockFileChannel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                        try {
-                            lock = lockFileChannel.tryLock();
-                            if (lock != null) {
-                                break;
-                            } else if (!options.allowAlternateCacheLoction()) {
-                                throw new IOException("Cache already in use");
-                            }
-                        } catch (OverlappingFileLockException x) {
-                            if (!options.allowAlternateCacheLoction()) {
-                                throw new IOException("Cache already in use", x);
-                            }
-                        }
-                        cacheLocation = cacheLocation.resolveSibling(cacheLocation.getFileName() + "-" + n);
-
-                    } else {
-                        throw new IOException("Invalid cache location: " + cacheLocation);
-                    }
-                }
-                if (lock == null) {
-                    throw new IOException("Cache already in use and unable to get alternate cache location");
-                }
-
-                props.setProperty("jcs.auxiliary.DC.attributes.DiskPath", cacheLocation.toAbsolutePath().toString());
-            }
+            Path cacheLocation = lockCacheLocation();
+            this.diskCacheLocation = cacheLocation;
+            props.setProperty("jcs.auxiliary.DC.attributes.DiskPath", cacheLocation.toAbsolutePath().toString());
         }
         CompositeCacheManager ccm = CompositeCacheManager.getUnconfiguredInstance();
         ccm.configure(props);
-        map = JCS.getInstance("default");        
-        this.cacheFallback = options.getCacheFallback();
+        map = JCS.getInstance("default");
     }
 
-    void setCacheFallbackOption(RestFileSystemOptions.CacheFallback cacheFallback) {
-        this.cacheFallback = cacheFallback;
-    }
-    
-    boolean doEntriesExpire() {
-        return cacheFallback != RestFileSystemOptions.CacheFallback.WHEN_POSSIBLE;
-    }
-    
-    CacheEntry getEntry(URI uri) {
-        CacheEntry e = map.get(uri);
-        if ( e != null ) {
-            e.setIsExpired(doEntriesExpire());
+    /**
+     * Acquires the disk-cache location for this JVM. The lock on
+     * {@code <loc>/lockFile} has three outcomes, distinguished by the fact that
+     * a Java {@link FileLock} is JVM-scoped:
+     * <ul>
+     *   <li>{@code tryLock()} returns a lock &rarr; nobody holds it; this mount
+     *       owns the location and keeps the lock.</li>
+     *   <li>{@link OverlappingFileLockException} &rarr; another mount in
+     *       <em>this</em> JVM already holds it (a foreign process would instead
+     *       yield {@code null}); share the location, taking no lock.</li>
+     *   <li>{@code tryLock()} returns {@code null} &rarr; another <em>process</em>
+     *       holds it; spill to {@code <loc>-N} if allowed, else fail.</li>
+     * </ul>
+     * The lock is only a cross-JVM guard. Note: it is held by whichever mount
+     * acquires it first and released when <em>that</em> mount closes, not when
+     * the last sharer closes.
+     *
+     * @return the resolved disk-cache location
+     * @throws IOException if no usable location can be locked
+     */
+    private Path lockCacheLocation() throws IOException {
+        Path base = RestFileSystemOptionsHelper.getGlobalCacheLocation();
+        boolean allowAlternate = RestFileSystemOptionsHelper.allowAlternateCacheLocation();
+        Path cacheLocation = base;
+        for (int n = 1; n < 100; n++) {
+            Files.createDirectories(cacheLocation);
+            if (!(Files.isDirectory(cacheLocation) || Files.isWritable(cacheLocation))) {
+                throw new IOException("Invalid cache location: " + cacheLocation);
+            }
+            Path lockFile = cacheLocation.resolve("lockFile");
+            FileChannel lockFileChannel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            try {
+                lock = lockFileChannel.tryLock();
+                if (lock != null) {
+                    return cacheLocation;
+                }
+                // Another process holds the lock on this location.
+                lockFileChannel.close();
+                if (!allowAlternate) {
+                    throw new IOException("Cache already in use: " + cacheLocation);
+                }
+                // Spill to a flat sibling of the base (<base>-1, <base>-2, …); suffix
+                // the pristine base, not the already-suffixed candidate, or the names
+                // compound (<base>-1-2-3).
+                cacheLocation = base.resolveSibling(base.getFileName() + "-" + n);
+            } catch (OverlappingFileLockException x) {
+                // Another mount in this JVM already holds the lock; share the location.
+                lockFileChannel.close();
+                return cacheLocation;
+            }
         }
-        return e;
+        throw new IOException("Cache already in use and unable to get alternate cache location");
+    }
+
+    /**
+     * Returns the resolved disk cache directory, or {@code null} when no disk
+     * cache is in use.
+     *
+     * @return the disk cache directory, or {@code null}
+     */
+    Path getDiskCacheLocation() {
+        return diskCacheLocation;
+    }
+
+    CacheEntry getEntry(URI uri) {
+        return map.get(uri);
     }
 
     void cacheResponse(ClientResponseContext response, URI uri) throws IOException {
@@ -122,9 +150,9 @@ class Cache implements Closeable {
     public void close() throws IOException {
         // This is super ugly, but otherwise we always get a SEVERE error because
         // the cache manager appears to shutdown the auxilliary disk cache once when it shuts
-        // down the memory cache, and then again when it shuts down the auxilliary caches. This 
+        // down the memory cache, and then again when it shuts down the auxilliary caches. This
         // looks like a bug, so here we turn off logging to avoid confusing messsages.
-        
+
         Logger logger = Logger.getLogger(IndexedDiskCache.class.getName());
         logger.setLevel(Level.OFF);
 
@@ -146,7 +174,6 @@ class Cache implements Closeable {
         private String mediaType;
         private byte[] bytes;
         private volatile int updateCount = 0;
-        private boolean isExpired = true;
 
         static final long serialVersionUID = 1521062449875932852L;
 
@@ -176,22 +203,6 @@ class Cache implements Closeable {
             response.setEntityStream(new ByteArrayInputStream(bytes));
         }
 
-        /**
-         * Expired indicates that the cache entry should be checked for freshness before
-         * use. The current implementation always returns true, meaning we always go back to
-         * the server (if it is online) to check that the cache entry is up-to-date. It would
-         * be possible to return false if the cache was recently created/updated, to reduce the need
-         * to constantly check the freshness of the cache if the same data is read repeatedly.
-         * @return <code>true</code> if the cache entry should be checked.
-         */
-        boolean isExpired() {
-            return isExpired;
-        }
-        
-        void setIsExpired(boolean isExpired) {
-            this.isExpired = isExpired;
-        }
-
         byte[] getContent() {
             return bytes;
         }
@@ -208,7 +219,7 @@ class Cache implements Closeable {
             return lastModified;
         }
 
-        /** 
+        /**
          * Called when the cache entry has been checked, and found to be up-to-date.
          * @param response The server response, used to extract the eTag and lastModified date.
          */
