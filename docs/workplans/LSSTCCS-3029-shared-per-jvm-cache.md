@@ -128,14 +128,19 @@ Document the JVM-scoped-`FileLock` asymmetry and the release-on-acquiring-mount 
   assertion.)
 - **Cross-JVM guard** (surefire subprocess): a helper `main` in test sources reuses the real `Cache`
   to grab the lock on a location, prints a readiness marker, blocks. Parent (globals via backdoor)
-  asserts: spill flag on → second `Cache` resolves `<loc>-1`; flag off → "in use". Knobs: readiness
-  handshake + timeout, forced teardown (`destroyForcibly` in `finally`), helper self-terminate
-  safety timeout. Linux-only; revisit if CI flakes.
+  asserts: spill flag on → second `Cache` resolves `<loc>-1`; flag off → "in use". A second case
+  (`spillsToFlatSiblingsWhenWalkingPastMultipleLocks`) launches **two** holder JVMs (on `cache` and
+  `cache-1`) so the `Cache` under test must land on `cache-2` — a regression guard for the
+  spill-naming bug (below). Knobs: readiness handshake + timeout, forced teardown (`destroyForcibly`),
+  helper self-terminate safety timeout. Linux-only; revisit if CI flakes.
 - **Per-FS location inert:** assert a per-FS `cacheLocation()` does **not** change the resolved
   location (proves the toolkit call is dead).
 - **Migrate** `CachingTest`/`SpeedTest`/`VersionedFileTest` off per-FS `cacheLocation(tempDir)` onto
   the backdoor; ensure the backdoor is reset after each test (static-leak caveat, cf.
-  `DefaultEnvTest.clearDefaults`).
+  `DefaultEnvTest.clearDefaults`). These tests (plus `CacheLockCrossJvmTest`) now take a JUnit 5
+  `@TempDir Path` instead of `Files.createTempDirectory("rfs")`, so JUnit deletes each cache tree
+  after the test and `/tmp` no longer accumulates `rfs*` dirs; `SpeedTest` was migrated JUnit 4 →
+  Jupiter for this.
 - Rewrite `cacheLockTest` (`CachingTest.java:236-268`) — its in-JVM "in use" premise is now the
   *share* path; the cross-JVM assertion moves to the subprocess test.
 
@@ -155,6 +160,15 @@ deployment (roll out with the new client + bootstrap), not a build dependency of
   `mvn -Dtest=CachingTest test -pl client` for the focused loop.
 - Update the [toolkit cache-compatibility guide](../guides/toolkit-cache-compatibility.md) to the
   0003 model in the same PR (it currently describes the 0001 build).
+- Live runtime verification against the dev server (2026-07-21): warm-start offline + reattach,
+  one shared region with mixed `OFFLINE`/`WHEN_POSSIBLE` mounts, spill, and stale-lock reclaim.
+  Recorded in the guide's Verification section.
+
+**Bug found & fixed during verification.** The spill loop (`Cache.lockCacheLocation`) suffixed the
+already-mutated candidate rather than the pristine base, so a second spill compounded to
+`<base>-1-2` (and `<base>-1-2-3`) instead of flat `<base>-2`, `-3`. Safe (each still got a distinct,
+exclusively-locked dir) but wrongly named. Fixed to suffix the captured base; covered by the new
+two-level cross-JVM test. The unit suite missed it because it only spilled one level.
 
 ## Risks
 

@@ -43,11 +43,25 @@ half is unaffected.
 
 ## Verification
 
-Source-level analysis of the toolkit at `/home/turri/Code/LSST/ccs/org-lsst-ccs-toolkit` against the
-branch — not a runtime launch. The per-FS builder methods `cacheLocation()`/`ignoreLockedCache()` are
-**removed**, so the toolkit does not compile against the new client until its LSSTCCS-3029 PR lands
-(client bumped to **1.1.10-SNAPSHOT**, calls removed). The toolkit previously depended on client
-**1.1.8**.
+Confirmed at runtime (LSSTCCS-3029, 2026-07-21) with live CCS agents against the production dev
+server `https://lsst-camera-dev.slac.stanford.edu/RestFileServer/`, in addition to the unit suite:
+
+- **One shared region across all three services.** A `demo-subsystem` agent mounting `config`,
+  `persistence` (both `OFFLINE`) and `dictionaries` (`WHEN_POSSIBLE`) in one JVM backed onto a
+  **single** JCS `default` region and one disk store (`~/ccs/cache/demo-subsystem/default.data`,
+  no per-service subdirs) — the two policies coexisting in the shared region, exactly as designed.
+- **Warm-start offline.** With the server made unreachable, the agent went offline at mount time,
+  reattached to its own cache, and served cached `config`/`persistence` reads from disk; an
+  uncached read failed loud with `OfflineException` (the accepted failure), and once that file had
+  been cached online, the offline read succeeded.
+- **App-name cache keying.** Role agents reattach to their own cache across restarts; multiple
+  shells launched from the same app file share the app name, collide, and spill to `<loc>-N`
+  (see [ADR 0003 §3](../decisions/0003-shared-per-jvm-cache.md)). Stale locks from a killed agent
+  are reclaimed (OS releases the lock on process death).
+
+The per-FS builder methods `cacheLocation()`/`ignoreLockedCache()` are **removed**, so the toolkit
+does not compile against the new client until its LSSTCCS-3029 PR lands (client bumped to
+**1.1.11**, calls removed). The toolkit previously depended on client **1.1.8**.
 
 ## Takeaway
 

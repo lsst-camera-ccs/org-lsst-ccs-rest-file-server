@@ -1,6 +1,6 @@
 # 0003 — One shared cache per JVM, global cache config, policy in the file system
 
-- Status: proposed (supersedes much of [0001](0001-per-file-system-cache-isolation.md); amends [0002](0002-option-resolution-cascade.md))
+- Status: accepted (supersedes much of [0001](0001-per-file-system-cache-isolation.md); amends [0002](0002-option-resolution-cascade.md))
 - Date: 2026-07-20 (design refined 2026-07-21)
 - Ticket: LSSTCCS-3029
 
@@ -17,10 +17,16 @@ The requirement is the opposite of 0001: a JVM with several remote file systems 
 **start when the server is down**, from the freshest data they already hold.
 
 Two facts make this safe. Dictionary URLs embed a checksum, so cached content is immutable per
-URL — "never expire" is correct, not stale. Agent-name uniqueness is enforced by the messaging
-system, so a role agent (`focal-plane`, `mcm`, …) is the only holder of its name and reattaches
-to its own cache across restarts; shells/consoles get unique, non-reproducible names and simply
-do not reattach, which is acceptable.
+URL — "never expire" is correct, not stale. And the cache location keys off the **application
+name** — the name of the app file the bootstrap is launching, injected as the `<app|default>`
+token when it sets the property. This is *not* the messaging-bus agent name (which the messaging
+system does enforce unique); it is resolved at launch, before any bus identity exists. A role
+agent (`focal-plane`, `mcm`, …) is launched from its own app file, so its app name is stable and
+unique across restarts and it reattaches to its own cache. Several shells or consoles launched
+from the *same* app file share the *same* app name, so they resolve to the same cache location
+and collide — the first takes it, the rest spill to `<loc>-1`, `-2`, … (§3). Shells therefore do
+not reliably reattach to any particular cache; whichever slot is free is the one they get, which
+is acceptable — a shell that misses its previous cache just refetches.
 
 ## Decision
 

@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
 import org.lsst.ccs.rest.file.server.client.VersionOpenOption;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributes;
@@ -30,6 +31,10 @@ import org.lsst.ccs.web.rest.file.server.TestServer;
  * 
  */
 public class VersionedFileTest {
+
+    /** JUnit creates this per test and deletes the tree afterwards, so the cache dir does not leak. */
+    @TempDir
+    Path tempDir;
 
     /** Reset the JVM-global cache location set via the backdoor (ADR 0003). */
     @org.junit.jupiter.api.AfterEach
@@ -94,7 +99,6 @@ public class VersionedFileTest {
     public void cacheTest(int port, RestFileSystemOptions.CacheFallback cacheMode) throws URISyntaxException, IOException, InterruptedException {
         TestServer testServer = new TestServer(port);
         URI restRootURI = UriBuilder.fromUri(testServer.getServerURI()).scheme("ccs").build();
-        final Path tempDir = Files.createTempDirectory("rfs");
         // Cache location is JVM-global now (ADR 0003); set it via the test backdoor.
         RestFileSystemOptionsHelper.setGlobalCacheConfigForTest(tempDir, false);
         Map<String, Object> env = RestFileSystemOptions.builder()

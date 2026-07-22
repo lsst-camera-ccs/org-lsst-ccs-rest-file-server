@@ -95,8 +95,9 @@ class Cache implements Closeable {
      * @throws IOException if no usable location can be locked
      */
     private Path lockCacheLocation() throws IOException {
-        Path cacheLocation = RestFileSystemOptionsHelper.getGlobalCacheLocation();
+        Path base = RestFileSystemOptionsHelper.getGlobalCacheLocation();
         boolean allowAlternate = RestFileSystemOptionsHelper.allowAlternateCacheLocation();
+        Path cacheLocation = base;
         for (int n = 1; n < 100; n++) {
             Files.createDirectories(cacheLocation);
             if (!(Files.isDirectory(cacheLocation) || Files.isWritable(cacheLocation))) {
@@ -114,7 +115,10 @@ class Cache implements Closeable {
                 if (!allowAlternate) {
                     throw new IOException("Cache already in use: " + cacheLocation);
                 }
-                cacheLocation = cacheLocation.resolveSibling(cacheLocation.getFileName() + "-" + n);
+                // Spill to a flat sibling of the base (<base>-1, <base>-2, …); suffix
+                // the pristine base, not the already-suffixed candidate, or the names
+                // compound (<base>-1-2-3).
+                cacheLocation = base.resolveSibling(base.getFileName() + "-" + n);
             } catch (OverlappingFileLockException x) {
                 // Another mount in this JVM already holds the lock; share the location.
                 lockFileChannel.close();

@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
 import org.lsst.ccs.rest.file.server.client.implementation.Cache.CacheEntry;
 import org.lsst.ccs.web.rest.file.server.TestServer;
@@ -30,6 +31,10 @@ import org.lsst.ccs.web.rest.file.server.TestServer;
  * @author tonyj
  */
 public class CachingTest {
+
+    /** JUnit creates this per test and deletes the tree afterwards, so the cache dir does not leak. */
+    @TempDir
+    Path tempDir;
 
     /**
      * The cache location is JVM-global (ADR 0003). Tests point it at a temp dir
@@ -53,7 +58,6 @@ public class CachingTest {
     public void cacheTest(int port, RestFileSystemOptions.CacheFallback cacheMode) throws URISyntaxException, IOException, InterruptedException {
         TestServer testServer = new TestServer(port);
         URI restRootURI = UriBuilder.fromUri(testServer.getServerURI()).scheme("ccs").build();
-        final Path tempDir = Files.createTempDirectory("rfs");
         RestFileSystemOptionsHelper.setGlobalCacheConfigForTest(tempDir, false);
         Map<String, Object> env = RestFileSystemOptions.builder()
                 .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
@@ -124,7 +128,6 @@ public class CachingTest {
     public void offlineCacheTest() throws IOException, URISyntaxException {
         TestServer testServer = new TestServer();
         URI restRootURI = UriBuilder.fromUri(testServer.getServerURI()).scheme("ccs").build();
-        final Path tempDir = Files.createTempDirectory("rfs");
         RestFileSystemOptionsHelper.setGlobalCacheConfigForTest(tempDir, false);
         Map<String, Object> env = RestFileSystemOptions.builder()
                 .set(RestFileSystemOptions.CacheOptions.MEMORY_AND_DISK)
@@ -187,7 +190,6 @@ public class CachingTest {
      */
     @Test
     public void multiMountSharedCacheTest() throws URISyntaxException, IOException {
-        final Path tempDir = Files.createTempDirectory("rfs");
         RestFileSystemOptionsHelper.setGlobalCacheConfigForTest(tempDir, false);
 
         TestServer testServer = new TestServer();
@@ -238,7 +240,6 @@ public class CachingTest {
      */
     @Test
     public void sameJvmCacheShareTest() throws URISyntaxException, IOException {
-        final Path tempDir = Files.createTempDirectory("rfs");
         RestFileSystemOptionsHelper.setGlobalCacheConfigForTest(tempDir, false);
 
         Map<String, Object> env = RestFileSystemOptions.builder()

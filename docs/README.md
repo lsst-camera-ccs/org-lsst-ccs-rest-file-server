@@ -14,7 +14,7 @@ Organized by lifecycle — each category has its own maintenance rule.
 **Decisions**
 - [0001 — Per-file-system cache isolation](decisions/0001-per-file-system-cache-isolation.md) — largely superseded by 0003
 - [0002 — Option resolution cascade](decisions/0002-option-resolution-cascade.md) — amended by 0003 (two keys go global)
-- [0003 — One shared cache per JVM](decisions/0003-shared-per-jvm-cache.md) — proposed
+- [0003 — One shared cache per JVM](decisions/0003-shared-per-jvm-cache.md) — accepted
 
 **Guides**
 - [Toolkit cache compatibility](guides/toolkit-cache-compatibility.md)
