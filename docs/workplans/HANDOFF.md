@@ -1,7 +1,7 @@
 # HANDOFF
 
-- Anchor: branch `LSSTCCS-3029`, at commit `7cb189f` (pushed) + an uncommitted working tree (below).
-- On resume: `git log --oneline main..HEAD` for branch history; `git status` for the working tree.
+- Anchor: branch `LSSTCCS-3029`, at commit `490a3bf` (pushed; working tree clean).
+- On resume: `git log --oneline main..HEAD` for branch history.
 
 ## State
 
@@ -10,20 +10,23 @@
 per-FS `cacheLocation()`/`ignoreLockedCache()` builder methods removed and replaced by a set-once
 `setCacheLocation(Path)` that also backs the CLI's `--cacheDir`).
 
-- **rest-file-server (this repo):** 0003 implemented + API cleanup, committed through `7cb189f`
+- **rest-file-server (this repo):** 0003 implemented + API cleanup, committed through `490a3bf`
   (pushed; `origin/LSSTCCS-3029` is level with HEAD). `mvn -pl war,client -am install` green
-  (client 43 tests, war 9). **PR not yet opened.**
+  (client 43 tests, war 9). **PR #13** (open, approved by tony-johnson; `490a3bf` — the spill fix +
+  test cleanup + this doc refresh — landed after that approval, so may warrant a re-review).
 - **bootstrap:** `<app|default>` token + shipped `defaultEnvironment` line — committed, pushed, PR #20.
 - **toolkit:** client bumped to 1.1.11 + `RemoteFileServer` cleanup — committed, pushed, PR #316.
 
 Coupled only at deployment (no build dependency beyond the toolkit's declared client version); roll
 out together.
 
-**Uncommitted working tree (this session):**
+**Landed this session in `490a3bf`:**
 - `Cache.java` — **spill-naming bug fix** (see below).
 - `CacheLockCrossJvmTest.java` — new two-level spill regression test + `@TempDir`.
 - `CachingTest.java`, `VersionedFileTest.java`, `SpeedTest.java` — `@TempDir` cleanup so tests no
   longer leak `/tmp/rfs*` dirs (`SpeedTest` migrated JUnit 4 → Jupiter).
+- The five `docs/` updates (ADR 0003 accepted; app-name Context; guide runtime verification;
+  workplan; this file).
 
 ## This session (2026-07-21)
 
@@ -41,8 +44,9 @@ out together.
 
 ## Next up
 
-- **Commit this session's working tree** (spill fix + test cleanup) and **open this repo's PR** — the
-  linchpin the toolkit/bootstrap PRs pair with.
+- **Land PR #13** (this repo — the linchpin the toolkit/bootstrap PRs pair with). Consider a
+  re-review of `490a3bf`, which landed after the existing approval. Then merge the three PRs
+  together (#13 + toolkit #316 + bootstrap #20 — deployment-coupled).
 - Optional: full toolkit reactor build (`mvn install`) to confirm nothing downstream of
   `core/configuration` breaks (only that module + deps built so far).
 - Then the deferred deployment-config items below.
