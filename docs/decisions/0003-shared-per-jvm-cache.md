@@ -82,6 +82,13 @@ coordination note, not a constraint on the client implementation or its tests.
 
 ### 3. Lock guards cross-JVM only; same-JVM mounts share
 
+> **Superseded by [0004](0004-per-jvm-cache-lock-defect.md).** The guarantee below is *false as
+> built*: because the lock is acquired per `Cache` and a JVM mounts several file systems, the
+> second mount's `close()` silently drops the first's kernel lock (POSIX close-releases-all-locks),
+> so JVMs sharing a location get **no** exclusion and silently share one disk store. Field-confirmed
+> on ext3. 0004 moves acquisition to once-per-JVM. Read this section as the original intent, not
+> current behavior.
+
 The lock on `<loc>/lockFile` has three outcomes, distinguished by JVM-scoped `FileLock` semantics:
 
 - **`tryLock()` returns a lock** — nobody holds it. This mount owns the location; keep the lock.

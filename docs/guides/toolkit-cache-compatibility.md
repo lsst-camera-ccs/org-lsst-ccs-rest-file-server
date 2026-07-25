@@ -59,6 +59,14 @@ server `https://lsst-camera-dev.slac.stanford.edu/RestFileServer/`, in addition 
   (see [ADR 0003 §3](../decisions/0003-shared-per-jvm-cache.md)). Stale locks from a killed agent
   are reclaimed (OS releases the lock on process death).
 
+> **Correction (2026-07-24, see [ADR 0004](../decisions/0004-per-jvm-cache-lock-defect.md)).** As
+> originally built, the spill-on-collide behavior above was **not reliable**: a JVM's second mount
+> silently dropped the first's `fcntl` lock, so shells sharing a location usually got **no**
+> exclusion and shared one disk store (staggered launches produced three live shells holding the
+> lockFile open with *zero* locks). **Fixed and field-verified under ADR 0004** — the lock is now
+> acquired once per JVM and held for its lifetime, so distinct JVMs reliably spill to `<loc>-N`
+> regardless of launch timing (verified: two staggered shells → two dirs, one real lock each).
+
 The per-FS builder methods `cacheLocation()`/`ignoreLockedCache()` are **removed**, so the toolkit
 does not compile against the new client until its LSSTCCS-3029 PR lands (client bumped to
 **1.1.11**, calls removed). The toolkit previously depended on client **1.1.8**.

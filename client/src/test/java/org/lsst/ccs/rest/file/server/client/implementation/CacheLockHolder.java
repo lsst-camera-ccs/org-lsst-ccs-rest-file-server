@@ -5,10 +5,18 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
 
 /**
  * Test helper launched as a separate JVM by {@link CacheLockCrossJvmTest}. It
- * opens a {@code MEMORY_AND_DISK} {@link Cache} at the location given in argv[0],
- * which takes the cross-JVM lock, prints a readiness marker, then blocks until
- * the parent kills it. A safety timeout guarantees it cannot linger and hold the
- * lock forever if the parent fails to tear it down.
+ * opens <em>two</em> {@code MEMORY_AND_DISK} {@link Cache} instances at the
+ * location given in argv[0], takes the cross-JVM lock, prints a readiness marker,
+ * then blocks until the parent kills it. A safety timeout guarantees it cannot
+ * linger and hold the lock forever if the parent fails to tear it down.
+ * <p>
+ * It opens two caches on purpose: this models a real multi-mount JVM (a shell or
+ * the toolkit's three services) and is the [ADR 0004] regression guard. Under the
+ * old per-{@code Cache} locking, the second mount's {@code close()} silently
+ * dropped the lock the first still believed it held, so this holder would NOT
+ * actually exclude the parent JVM — the exact defect that shipped. A single-mount
+ * holder (the previous version) never triggered it, which is why the bug slipped
+ * past the cross-JVM tests.
  */
 public class CacheLockHolder {
 
@@ -23,10 +31,13 @@ public class CacheLockHolder {
                 "{\"CacheOptions\":\"MEMORY_AND_DISK\",\"CacheLocation\":\"" + location + "\"}");
 
         RestFileSystemOptionsHelper options = new RestFileSystemOptionsHelper(null);
-        try (Cache cache = new Cache(options)) {
-            // Confirm we actually landed on the requested location (no spill).
-            if (!Paths.get(location).toAbsolutePath().equals(cache.getDiskCacheLocation().toAbsolutePath())) {
-                System.out.println("UNEXPECTED_LOCATION " + cache.getDiskCacheLocation());
+        // Two mounts in one JVM — the multi-mount case (see class doc).
+        try (Cache cache = new Cache(options); Cache cache2 = new Cache(options)) {
+            // Confirm we actually landed on the requested location (no spill) and
+            // that the second mount shares it rather than spilling.
+            if (!Paths.get(location).toAbsolutePath().equals(cache.getDiskCacheLocation().toAbsolutePath())
+                    || !cache.getDiskCacheLocation().equals(cache2.getDiskCacheLocation())) {
+                System.out.println("UNEXPECTED_LOCATION " + cache.getDiskCacheLocation() + " / " + cache2.getDiskCacheLocation());
                 return;
             }
             System.out.println(READY_MARKER);

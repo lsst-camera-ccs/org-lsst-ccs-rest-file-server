@@ -19,13 +19,16 @@ import org.junit.jupiter.api.io.TempDir;
 import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
 
 /**
- * Cross-JVM cache-lock guard (ADR 0003 §3). A single JVM cannot produce a
- * genuine {@code tryLock()==null}; same-JVM contention always surfaces as an
- * {@code OverlappingFileLockException} (the share path, covered by
- * {@code CachingTest}). So this launches a real second JVM
- * ({@link CacheLockHolder}) that holds the lock on a location, then asserts this
- * JVM either spills to a flat sibling {@code <loc>-N} (spill enabled) or fails
- * "in use" (spill disabled). Linux-only; revisit if it proves flaky in CI.
+ * Cross-JVM cache-lock guard (ADR 0003 §3, corrected by ADR 0004). A single JVM
+ * cannot produce a genuine {@code tryLock()==null}; so this launches a real
+ * second JVM ({@link CacheLockHolder}) that holds the lock on a location, then
+ * asserts this JVM either spills to a flat sibling {@code <loc>-N} (spill enabled)
+ * or fails "in use" (spill disabled). Linux-only; revisit if it proves flaky in CI.
+ * <p>
+ * The holder is deliberately <em>multi-mount</em> (opens two caches) so these
+ * tests exercise the production case and would fail against the pre-0004 code,
+ * where the second mount silently dropped the lock and the holder failed to
+ * exclude this JVM. See {@link CacheLockHolder}.
  */
 public class CacheLockCrossJvmTest {
 
