@@ -232,11 +232,14 @@ public class CachingTest {
     }
 
     /**
-     * Two caches for the same location in one JVM must both succeed: the second
-     * gets an {@code OverlappingFileLockException}, recognises the location is
-     * already held by this JVM, and shares it (no lock, same directory). Genuine
-     * cross-process contention (a foreign {@code tryLock()} returning null) is
-     * covered by {@link CacheLockCrossJvmTest}.
+     * Two caches for the same location in one JVM must both succeed and share the
+     * one directory. Crucially, the per-JVM lock must remain held throughout —
+     * this is the [ADR 0004] regression guard: the previous per-{@code Cache}
+     * design silently dropped the lock when the second mount closed its own
+     * lockFile descriptor (POSIX close-releases-all-locks). Now the lock is
+     * acquired once and the second mount never reopens the lockFile, so the lock
+     * survives. Genuine cross-process contention is covered by
+     * {@link CacheLockCrossJvmTest}.
      */
     @Test
     public void sameJvmCacheShareTest() throws URISyntaxException, IOException {
@@ -248,10 +251,18 @@ public class CachingTest {
                 .build();
         Cache cache = new Cache(new RestFileSystemOptionsHelper(env));
         try {
+            assertTrue(RestFileSystemOptionsHelper.isCacheLockHeldForTest(),
+                    "first mount must hold the per-JVM lock");
             Cache cache2 = new Cache(new RestFileSystemOptionsHelper(env));
             // The second cache shares the first's location rather than failing.
             assertEquals(cache.getDiskCacheLocation(), cache2.getDiskCacheLocation());
+            // ADR 0004: the second mount must NOT have dropped the shared lock.
+            assertTrue(RestFileSystemOptionsHelper.isCacheLockHeldForTest(),
+                    "lock must survive a second same-JVM mount (ADR 0004 regression)");
             cache2.close();
+            // ...and closing one mount must not release the JVM-global lock either.
+            assertTrue(RestFileSystemOptionsHelper.isCacheLockHeldForTest(),
+                    "lock must survive closing one of several mounts (ADR 0004)");
         } finally {
             cache.close();
         }

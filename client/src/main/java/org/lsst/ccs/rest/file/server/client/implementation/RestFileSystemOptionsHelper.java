@@ -4,10 +4,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -124,6 +129,15 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
     // spill flag still resolves normally.
     private static Path cacheLocationOverride;
 
+    // The single per-JVM disk-cache lock (ADR 0004). Acquired once by the first
+    // MEMORY_AND_DISK mount and held — channel open, lock held — for the JVM
+    // lifetime; later mounts reuse lockedCacheLocation without reopening the
+    // lockFile. Holding exactly one FD on the lockFile is what makes the lock
+    // survive: a second FD's close() would drop the POSIX lock (the 0004 defect).
+    private static Path lockedCacheLocation;
+    private static FileChannel lockChannel;
+    private static FileLock cacheLock;
+
     /**
      * Resolves the JVM-global cache location, once. Resolution order, highest
      * precedence first: the test backdoor, the {@link RestFileSystemOptions#DEFAULT_ENV_PROPERTY}
@@ -167,6 +181,68 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
     }
 
     /**
+     * Acquires — once per JVM — the disk-cache location and the cross-JVM lock on
+     * its {@code lockFile}, returning the resolved (post-spill) location. The
+     * first {@code MEMORY_AND_DISK} mount does the work; every later mount gets
+     * the memoized location back without touching the {@code lockFile} again.
+     * <p>
+     * Acquiring once, and never opening a second descriptor on the same
+     * {@code lockFile}, is the fix for the [ADR 0004] defect: a Java
+     * {@link FileLock} is a process-wide POSIX lock, and closing <em>any</em>
+     * descriptor to the locked file releases it. The previous per-{@code Cache}
+     * design opened and closed a second descriptor on the second mount, silently
+     * dropping the lock the first mount still believed it held.
+     * <p>
+     * The lock on {@code <loc>/lockFile}:
+     * <ul>
+     *   <li>{@code tryLock()} returns a lock &rarr; nobody holds it; this JVM owns
+     *       the location and keeps the lock for its lifetime.</li>
+     *   <li>{@code tryLock()} returns {@code null} &rarr; another <em>process</em>
+     *       holds it; spill to {@code <loc>-N} if allowed, else fail.</li>
+     * </ul>
+     * (No {@code OverlappingFileLockException} case: memoization means we open the
+     * {@code lockFile} at most once per JVM, so this JVM never contends with
+     * itself.) The lock is released only at JVM exit (the OS reclaims it on process
+     * death) or via {@link #resetGlobalCacheConfigForTest()}.
+     *
+     * @return the resolved disk-cache location this JVM has locked
+     * @throws IOException if no usable location can be locked
+     */
+    static synchronized Path lockCacheLocation() throws IOException {
+        if (lockedCacheLocation != null) {
+            return lockedCacheLocation;
+        }
+        Path base = getGlobalCacheLocation();
+        boolean allowAlternate = allowAlternateCacheLocation();
+        Path cacheLocation = base;
+        for (int n = 1; n < 100; n++) {
+            Files.createDirectories(cacheLocation);
+            if (!(Files.isDirectory(cacheLocation) || Files.isWritable(cacheLocation))) {
+                throw new IOException("Invalid cache location: " + cacheLocation);
+            }
+            Path lockFile = cacheLocation.resolve("lockFile");
+            FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            FileLock lock = channel.tryLock();
+            if (lock != null) {
+                lockChannel = channel;
+                cacheLock = lock;
+                lockedCacheLocation = cacheLocation;
+                return cacheLocation;
+            }
+            // Another process holds the lock on this location.
+            channel.close();
+            if (!allowAlternate) {
+                throw new IOException("Cache already in use: " + cacheLocation);
+            }
+            // Spill to a flat sibling of the base (<base>-1, <base>-2, …); suffix
+            // the pristine base, not the already-suffixed candidate, or the names
+            // compound (<base>-1-2-3).
+            cacheLocation = base.resolveSibling(base.getFileName() + "-" + n);
+        }
+        throw new IOException("Cache already in use and unable to get alternate cache location");
+    }
+
+    /**
      * Pins a programmatic cache-location override, allowed only while the cache
      * is still unconfigured (before the first file system is created). Once a
      * cache has been configured the location is fixed for the JVM, so a later
@@ -193,17 +269,54 @@ import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
      * @param allowAlternate whether spill to an alternate location is allowed
      */
     static synchronized void setGlobalCacheConfigForTest(Path location, boolean allowAlternate) {
+        // Drop any lock held from a prior config so seeding a new location cannot
+        // leak the old lockFile handle or lock a stale directory.
+        releaseCacheLock();
+        lockedCacheLocation = null;
         globalCacheLocation = location;
         globalAllowAlternate = allowAlternate;
         globalResolved = true;
     }
 
-    /** Clears the memoized global cache config so it is re-resolved. Tests must call this to avoid leaking state. */
+    /**
+     * Clears the memoized global cache config and releases the per-JVM lock so it
+     * is re-resolved. Tests must call this to avoid leaking state — and to release
+     * the {@code lockFile} handle so a {@code @TempDir} tree can be deleted.
+     */
     static synchronized void resetGlobalCacheConfigForTest() {
+        releaseCacheLock();
+        lockedCacheLocation = null;
         globalCacheLocation = null;
         globalAllowAlternate = false;
         globalResolved = false;
         cacheLocationOverride = null;
+    }
+
+    private static void releaseCacheLock() {
+        try {
+            if (cacheLock != null) {
+                cacheLock.close();
+            }
+            if (lockChannel != null) {
+                lockChannel.close();
+            }
+        } catch (IOException x) {
+            LOG.log(Level.WARNING, "Unable to release cache lock", x);
+        } finally {
+            cacheLock = null;
+            lockChannel = null;
+        }
+    }
+
+    /**
+     * Whether this JVM currently holds a valid disk-cache lock. For tests: the
+     * once-per-JVM invariant (ADR 0004) is that acquiring several caches must
+     * leave the lock still held, unlike the per-{@code Cache} design it replaced.
+     *
+     * @return {@code true} if the per-JVM cache lock is held and valid
+     */
+    static synchronized boolean isCacheLockHeldForTest() {
+        return cacheLock != null && cacheLock.isValid();
     }
 
     /**

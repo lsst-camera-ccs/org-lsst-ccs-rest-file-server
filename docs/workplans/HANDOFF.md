@@ -1,54 +1,62 @@
 # HANDOFF
 
-- Anchor: branch `LSSTCCS-3029`, at commit `490a3bf` (pushed; working tree clean).
-- On resume: `git log --oneline main..HEAD` for branch history.
+- Anchor: branch `main`, at commit `53cb5c3` (PR #13 merged; working tree has the 0004 docs below, uncommitted).
+- On resume: `git log --oneline` for history; `git status` for the pending 0004 doc changes.
 
 ## State
 
-**ADR 0003 is implemented, committed, pushed, and now runtime-verified** across all three repos
-(one shared cache per JVM; cache location + spill flag JVM-global; caching policy per-mount; the
-per-FS `cacheLocation()`/`ignoreLockedCache()` builder methods removed and replaced by a set-once
-`setCacheLocation(Path)` that also backs the CLI's `--cacheDir`).
+ADR 0003 (one shared cache per JVM) is **merged** (PR #13 → `53cb5c3`), along with the paired
+bootstrap (#20) and toolkit (#316) PRs. Field testing of the merged code then surfaced a **defect in
+the cross-JVM lock** — the 0003 §3 guard did not actually hold. Written up, fixed, and field-verified
+as **[ADR 0004](../decisions/0004-per-jvm-cache-lock-defect.md) (accepted)**. Fix is in the working
+tree, **uncommitted**.
 
-- **rest-file-server (this repo):** 0003 implemented + API cleanup, committed through `490a3bf`
-  (pushed; `origin/LSSTCCS-3029` is level with HEAD). `mvn -pl war,client -am install` green
-  (client 43 tests, war 9). **PR #13** (open, approved by tony-johnson; `490a3bf` — the spill fix +
-  test cleanup + this doc refresh — landed after that approval, so may warrant a re-review).
-- **bootstrap:** `<app|default>` token + shipped `defaultEnvironment` line — committed, pushed, PR #20.
-- **toolkit:** client bumped to 1.1.11 + `RemoteFileServer` cleanup — committed, pushed, PR #316.
+**The 0004 defect in one line:** the lockFile lock was acquired per `Cache`, but a JVM mounts several
+file systems, so the second mount's `close()` silently dropped the first's `fcntl` lock (POSIX
+close-releases-all-locks). Result: JVMs sharing a location got **no** exclusion and silently shared
+one disk store. Fix: acquire the lock once per JVM, held for JVM lifetime; `Cache` never reopens the
+lockFile. See 0004 for the full mechanism, field evidence, and the remedy.
 
-Coupled only at deployment (no build dependency beyond the toolkit's declared client version); roll
-out together.
+## This session (2026-07-24)
 
-**Landed this session in `490a3bf`:**
-- `Cache.java` — **spill-naming bug fix** (see below).
-- `CacheLockCrossJvmTest.java` — new two-level spill regression test + `@TempDir`.
-- `CachingTest.java`, `VersionedFileTest.java`, `SpeedTest.java` — `@TempDir` cleanup so tests no
-  longer leak `/tmp/rfs*` dirs (`SpeedTest` migrated JUnit 4 → Jupiter).
-- The five `docs/` updates (ADR 0003 accepted; app-name Context; guide runtime verification;
-  workplan; this file).
-
-## This session (2026-07-21)
-
-- **Test cleanup:** the cache tests leaked a `/tmp/rfs*` dir per run (JCS files + lockFile). Moved
-  all four to JUnit 5 `@TempDir`; JUnit now deletes each tree. Verified zero leak after a full run.
-- **Live runtime verification** against the dev server (`lsst-camera-dev`), the first non-source
-  check of the 0003 model — see the [toolkit guide](../guides/toolkit-cache-compatibility.md)
-  Verification section. Covered: warm-start offline + reattach; one shared region with mixed
-  `OFFLINE`/`WHEN_POSSIBLE` mounts; spill; stale-lock reclaim after `kill -9`.
-- **Spill-naming bug found & fixed.** `Cache.lockCacheLocation` suffixed the already-suffixed
-  candidate, so successive spills compounded (`<base>-1-2-3`) instead of flat `<base>-2`, `-3`. Safe
-  (distinct exclusively-locked dirs) but misnamed; fixed to suffix the captured base, plus a
-  two-level cross-JVM regression test. The unit suite missed it (only spilled one level); the live
-  four-shell test surfaced it.
+- **Reproduced the 0004 lock defect live** on `lsstcam-mcm` (local ext3). Staggered `ccs-shell`
+  launches → 3 live shells holding `lockFile` open with **zero** locks in `/proc/locks`, all sharing
+  one `default.data`; burst launch (`for … &`) → spill `ccs-shell-1 … -4` by winning the startup
+  race. Same build, opposite symptoms, timing-dependent — confirming the guard is a race, not a lock.
+  This also reframes 0003's earlier "spill verified" as timing luck, not a working guard.
+- **Wrote up ADR 0004**; superseded-banner on 0003 §3; correction note on the toolkit guide's
+  Verification section; README index row.
+- **Implemented the 0004 remedy** (uncommitted, working tree):
+  - `RestFileSystemOptionsHelper.lockCacheLocation()` — acquires location + lock once per JVM,
+    memoized static holds the channel + lock for the JVM lifetime; spill walk moved here. Added
+    `isCacheLockHeldForTest()`; `reset`/`setGlobalCacheConfigForTest` now release the lock.
+  - `Cache` — reads the resolved location, no longer opens `lockFile`; `close()` no longer releases
+    the lock; dropped the `FileChannel`/`FileLock`/`OverlappingFileLockException` machinery.
+  - Tests — `CacheLockHolder` is now **multi-mount** (2 caches), so all 3 `CacheLockCrossJvmTest`
+    cases regression-guard the defect; `sameJvmCacheShareTest` asserts the lock survives a second
+    mount + a mount close. **Client suite green (43); war+client `install` green.**
+- **Version bump:** all 5 poms `1.1.10-SNAPSHOT → 1.1.11-SNAPSHOT` (the branch was cut pre-release
+  and never bumped; `main` is 1.1.11-SNAPSHOT via the release-plugin commit `564a544`). The deployed
+  client jar must be `…-client-1.1.11-SNAPSHOT.jar` to match the toolkit.
+- **Field-verified the fix** on `lsstcam-mcm` (ext3): two **staggered** shells → two dirs
+  (`ccs-shell`, `ccs-shell-1`) with **one real POSIX WRITE lock per JVM** on its own lockFile inode
+  in `/proc/locks` — vs. the pre-fix run's 3 live shells / 1 store / **0 locks**. 0004 → *accepted*.
+- **Toolkit-compatibility verified** (audit of `org-lsst-ccs-toolkit`): all `ccs://` mounts go
+  through `RemoteFileServer` (one `newFileSystem` site, one `close()` site); every `close()` is
+  terminal shutdown or precedes `System.exit`, so there is **no** close-then-reopen-same-location in a
+  live JVM — the only pattern the JVM-lifetime lock could affect. Nothing references the cache lock or
+  the removed builder methods. Recorded in [ADR 0004](../decisions/0004-per-jvm-cache-lock-defect.md)
+  Consequences. Toolkit pom still pins client `1.1.10-SNAPSHOT` (`core/configuration/pom.xml`) — bump
+  to 1.1.11 at release to consume the fix; usage needs no change.
 
 ## Next up
 
-- **Land PR #13** (this repo — the linchpin the toolkit/bootstrap PRs pair with). Consider a
-  re-review of `490a3bf`, which landed after the existing approval. Then merge the three PRs
-  together (#13 + toolkit #316 + bootstrap #20 — deployment-coupled).
-- Optional: full toolkit reactor build (`mvn install`) to confirm nothing downstream of
-  `core/configuration` breaks (only that module + deps built so far).
+- **Commit + PR** (client code + version bump + 0004 docs). Client-only change; no bootstrap/toolkit
+  code coupling this time. **Branch topology:** `LSSTCCS-3029` trails `main` by the PR-#13 merge +
+  release commits; the manual 1.1.11 bump here duplicates what a rebase onto `main` would bring.
+  Decide rebase-onto-main vs. new branch off `main` before opening the PR, to avoid a
+  redundant-looking version diff.
+- At toolkit release: bump its client dependency `1.1.10-SNAPSHOT → 1.1.11` to pick up the fix.
 - Then the deferred deployment-config items below.
 
 ## Backlog
