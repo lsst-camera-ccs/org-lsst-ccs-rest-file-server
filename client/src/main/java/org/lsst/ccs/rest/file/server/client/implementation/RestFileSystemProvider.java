@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.ws.rs.core.UriBuilder;
+import org.lsst.ccs.rest.file.server.client.RestFileSystemOptions;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributeView;
 import org.lsst.ccs.rest.file.server.client.VersionedFileAttributes;
 import org.lsst.ccs.utilities.misc.ExtendableURLStreamHandlerFactory;
@@ -44,6 +45,23 @@ public class RestFileSystemProvider extends FileSystemProvider {
 
     private final static Map<String, Object> NO_ENV = Collections.<String, Object>emptyMap();
     private static Map<String, ?> defaultEnvironment;
+
+    /**
+     * Options used for the {@link #getPath} trial-probe loop. That loop opens a
+     * file system for successive path prefixes and relies on the wrong ones
+     * <em>failing</em> so it can advance to the correct mount root; the bare host
+     * root, for instance, is not a valid REST endpoint in production (the server
+     * is deployed under a servlet context). These probes must therefore fail fast
+     * on an unreachable endpoint. Forcing {@code CacheOptions=NONE} and
+     * {@code CacheFallback=NEVER} keeps them from inheriting the JVM-global
+     * default (ADR 0003): with {@code MEMORY_AND_DISK} inherited, an unreachable
+     * probe goes offline and returns a file system instead of throwing, so the
+     * search stops at the wrong root and {@code .seq} files are sought in the
+     * wrong place (LSSTCCS regression when the client was bumped 1.1.8 -> 1.1.10).
+     */
+    private static final Map<String, Object> PROBE_ENV = Map.of(
+            RestFileSystemOptions.CACHE_OPTIONS, RestFileSystemOptions.CacheOptions.NONE,
+            RestFileSystemOptions.CACHE_FALLBACK, RestFileSystemOptions.CacheFallback.NEVER);
 
     private final Map<URI, RestFileSystem> cache = new ConcurrentHashMap<>();
 
@@ -134,7 +152,7 @@ public class RestFileSystemProvider extends FileSystemProvider {
         for (int i = 0; i < path.size(); i++) {
             URI trialURI = UriBuilder.fromUri(uri).replacePath(String.join("/", path.subList(0, i)) + "/").build();
             try {
-                FileSystem rfs = newFileSystem(trialURI, null);
+                FileSystem rfs = newFileSystem(trialURI, PROBE_ENV);
                 return rfs.getPath(path.get(i), String.join("/", path.subList(i + 1, path.size())));
             } catch (IOException x) {
                 // OK, just carry on
