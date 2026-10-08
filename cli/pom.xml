@@ -16,7 +16,8 @@
     <name>LSST CCS - Rest File Server - Command Line</name>
     
     <properties>
-        <graalvm.version>21.0.0.2</graalvm.version>
+        <graalvm.version>21.0.12</graalvm.version>
+        <native.maven.plugin.version>1.1.13</native.maven.plugin.version>
         <org.lsst.ccs.site.dir>site-root/utilities/org-lsst-ccs-rest-file-server/${project.version}/${project.artifactId}</org.lsst.ccs.site.dir>
     </properties>
     
@@ -84,45 +85,33 @@
             <activation>
                 <activeByDefault>false</activeByDefault>
             </activation>
-            <dependencies>
-                <dependency>
-                    <groupId>org.graalvm.sdk</groupId>
-                    <artifactId>graal-sdk</artifactId>
-                    <version>${graalvm.version}</version>
-                    <scope>provided</scope>
-                </dependency>
-            </dependencies>
             <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.graalvm.nativeimage</groupId>
-                        <artifactId>native-image-maven-plugin</artifactId>
-                        <version>${graalvm.version}</version>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>native-image</goal>
-                                </goals>
-                                <phase>package</phase>
-                            </execution>
-                        </executions>
+               <plugins>
+                  <plugin>
+                     <groupId>org.graalvm.buildtools</groupId>
+                     <artifactId>native-maven-plugin</artifactId>
+                     <version>${native.maven.plugin.version}</version>
+                     <extensions>true</extensions>
                         <configuration>
                             <skip>false</skip>
                             <imageName>cfs</imageName>
                             <mainClass>org.lsst.ccs.rest.file.server.cli.TopLevelCommand</mainClass>
                             <buildArgs>
-                                --report-unsupported-elements-at-runtime 
-                                --allow-incomplete-classpath 
-                                --no-fallback 
-                                --enable-url-protocols=http 
-                                --enable-url-protocols=https 
-                                --initialize-at-build-time=org.lsst.ccs.rest.file.server.client.implementation.RestFileSystemProvider
-                                <!-- See https://www.graalvm.org/22.1/reference-manual/native-image/StaticImages/ -->
-                                --static --libc=musl
+                                <buildArg>--initialize-at-build-time=org.lsst.ccs.rest.file.server.client.implementation.RestFileSystemProvider</buildArg>
+                                <buildArg>--enable-url-protocols=http,https</buildArg>
                             </buildArgs>
                         </configuration>
-                    </plugin>
-                </plugins>    
+                     <executions>
+                        <execution>
+                           <id>build-native</id>
+                           <goals>
+                              <goal>compile-no-fork</goal>
+                           </goals>
+                           <phase>package</phase>
+                       </execution>
+                     </executions>
+                  </plugin>
+               </plugins>
             </build>           
         </profile>
     </profiles>
