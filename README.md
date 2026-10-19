@@ -31,6 +31,7 @@ Documentation is organized by lifecycle under [`docs/`](docs/):
   - [0003 — One shared cache per JVM, global cache config, policy in the file system](docs/decisions/0003-shared-per-jvm-cache.md)
 - **Guides (the *how it behaves*)**
   - [Toolkit remote-file-server cache compatibility](docs/guides/toolkit-cache-compatibility.md)
+  - [Building the `cfs` native executable](docs/guides/building-native-cfs.md)
 - **Workplans (the *how we'll build it*)**
   - [LSSTCCS-3029 — One shared cache per JVM](docs/workplans/LSSTCCS-3029-shared-per-jvm-cache.md) (active — ADR 0003)
   - [LSSTCCS-3029 — Per-file-system cache isolation](docs/workplans/LSSTCCS-3029-per-file-system-cache-isolation.md) (superseded — ADR 0001)
